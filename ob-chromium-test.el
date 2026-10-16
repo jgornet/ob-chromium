@@ -366,6 +366,40 @@ Skipped when no browser is found."
   (ob-chromium-test--with-block "#+begin_src chromium :file out.png\n\n#+end_src\n"
     (should-error (org-babel-execute-src-block) :type 'user-error)))
 
+;;;; Measurement pass
+
+(ert-deftest ob-chromium-test-probe-script ()
+  "The probe script sets data-ob-chromium-size on load."
+  (let ((script (ob-chromium--probe-script)))
+    (should (string-prefix-p "<script>" script))
+    (should (string-match-p "data-ob-chromium-size" script))
+    (should (string-match-p "scrollHeight" script))))
+
+(ert-deftest ob-chromium-test-append-probe ()
+  "The probe goes before </body>, or at the end without one."
+  (should (equal (ob-chromium--append-probe "<body>x</body>" "<s/>") "<body>x<s/>\n</body>"))
+  (should (equal (ob-chromium--append-probe "<p>x</p>" "<s/>") "<p>x</p>\n<s/>")))
+
+(ert-deftest ob-chromium-test-parse-size ()
+  "The size is read from a DOM dump and clamped; a dump without it gives nil."
+  (should (equal (ob-chromium--parse-size "<html data-ob-chromium-size=\"1265x2000\"><head>") '(1265 . 2000)))
+  (should (equal (ob-chromium--parse-size "<html data-ob-chromium-size=\"100x99999\">") (cons 100 ob-chromium--max-window)))
+  (should-not (ob-chromium--parse-size "<html><body></body></html>")))
+
+(ert-deftest ob-chromium-test-integration-fit-content ()
+  ":fit content makes the height follow the content and keeps the width."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png :width 300 :height 100 :fit content\n<div style=\"height:1200px;margin:0\">tall</div>\n#+end_src\n"
+    (org-babel-execute-src-block)
+    (let ((size (ob-chromium-test--png-size (expand-file-name "out.png" dir))))
+      (should (= (car size) 300))
+      (should (>= (cdr size) 1200))
+      (should (< (cdr size) 1300)))))
+
+(ert-deftest ob-chromium-test-integration-fit-bad ()
+  "A :fit value other than viewport or content is a `user-error'."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png :fit page\n<p>x</p>\n#+end_src\n"
+    (should-error (org-babel-execute-src-block) :type 'user-error)))
+
 (provide 'ob-chromium-test)
 
 ;;; ob-chromium-test.el ends here

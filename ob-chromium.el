@@ -346,6 +346,45 @@ error of Chromium goes to the Org-Babel error buffer first."
       (user-error "ob-chromium: Chromium exited with %s and %s was not written; see *Org-Babel Error Output*"
                   code (file-name-nondirectory out)))))
 
+(defconst ob-chromium--max-window 16384
+  "Largest window side in CSS pixels the measured size is clamped to.")
+
+(defun ob-chromium--probe-script ()
+  "Return the script that records the document size on the root element."
+  "<script>
+addEventListener(\"load\", function () {
+  var d = document.documentElement;
+  d.setAttribute(\"data-ob-chromium-size\",
+                 d.scrollWidth + \"x\" + d.scrollHeight);
+});
+</script>")
+
+(defun ob-chromium--append-probe (html script)
+  "Return HTML with SCRIPT before </body>, or at the end without </body>."
+  (let ((case-fold-search t))
+    (if (string-match "</body>" html)
+        (replace-match (concat script "\n</body>") t t html)
+      (concat html "\n" script))))
+
+(defun ob-chromium--parse-size (dom)
+  "Return (WIDTH . HEIGHT) from the probe attribute in the DOM dump, or nil."
+  (when (string-match "data-ob-chromium-size=\"\\([0-9]+\\)x\\([0-9]+\\)\"" dom)
+    (cons (min (string-to-number (match-string 1 dom)) ob-chromium--max-window)
+          (min (string-to-number (match-string 2 dom)) ob-chromium--max-window))))
+
+(defun ob-chromium--measure (exe url profile width height params)
+  "Run the measurement pass and return the DOM dump as a string.
+The document at URL must carry the probe script.  A failed run is
+a `user-error'."
+  (let ((result (ob-chromium--run
+                 (ob-chromium--command exe url profile width height 'dump nil params))))
+    (unless (eql (nth 0 result) 0)
+      (org-babel-eval-error-notify (if (numberp (nth 0 result)) (nth 0 result) 1)
+                                   (nth 2 result))
+      (user-error "ob-chromium: the measurement run exited with %s; see *Org-Babel Error Output*"
+                  (nth 0 result)))
+    (nth 1 result)))
+
 ;;;; Babel entry points
 
 (defvar org-babel-default-header-args:chromium
@@ -385,6 +424,11 @@ Return nil: org inserts the link to :file because :results is file."
          (css (ob-chromium--css params))
          (width (or (ob-chromium--param :width params) ob-chromium-default-width))
          (height (or (ob-chromium--param :height params) ob-chromium-default-height))
+         (fit (or (ob-chromium--param :fit params) "viewport"))
+         (measure (pcase fit
+                    ("content" t)
+                    ("viewport" nil)
+                    (_ (user-error "ob-chromium: :fit must be viewport or content, not %S" fit))))
          (html (ob-chromium--assemble body css (ob-chromium--base-url)
                                       (ob-chromium--param :document params)))
          (dir (ob-chromium--temp-directory))
@@ -397,6 +441,14 @@ Return nil: org inserts the link to :file because :results is file."
           (make-directory profile t)
           (make-directory (file-name-directory out) t)
           (when (file-exists-p out) (delete-file out))
+          (when measure
+            (ob-chromium--write-document
+             (ob-chromium--append-probe html (ob-chromium--probe-script)) doc-file)
+            (let ((size (ob-chromium--parse-size
+                         (ob-chromium--measure exe url profile width height params))))
+              ;; The width stays :width.  The root element's scrollWidth
+              ;; is never less than the window width.
+              (when size (setq height (cdr size)))))
           (ob-chromium--write-document html doc-file)
           (ob-chromium--check
            (ob-chromium--run
