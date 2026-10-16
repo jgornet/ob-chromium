@@ -1,4 +1,166 @@
-* ob-chromium
+#+TITLE: ob-chromium
 
-Render HTML and CSS from org-babel source blocks to a screenshot with
-headless Chromium. Work in progress. See =designs/ob-chromium.org=.
+Render HTML and CSS from org-babel source blocks to a PNG, or a PDF,
+with headless Chromium. One Elisp file, no dependency outside Emacs
+27.1 and org 9.4, and a Chromium family browser.
+
+#+begin_src org
+,#+NAME: theme
+,#+begin_src css
+.card { display: inline-block; padding: 16px 24px; border-radius: 8px;
+        background: #2d7a2d; color: white; font-size: 24px; }
+,#+end_src
+
+,#+begin_src chromium :file card.png :css theme :selector .card
+<div class="card">Hello from ob-chromium</div>
+,#+end_src
+
+,#+RESULTS:
+[[file:card.png]]
+#+end_src
+
+The design, with the decisions behind every rule, is in
+[[file:designs/ob-chromium.org][designs/ob-chromium.org]].
+
+* Setup
+
+1. Install a Chromium family browser: Chromium, Chrome, Brave, Edge
+   or =chrome-headless-shell=. The package finds it on =PATH= or at
+   the usual macOS application paths. Otherwise set the path:
+   #+begin_src elisp
+   (setq ob-chromium-executable "/path/to/chromium")
+   #+end_src
+2. Install the package. Until it is on MELPA, clone the repository
+   and add it to =load-path=:
+   #+begin_src elisp
+   (add-to-list 'load-path "~/src/ob-chromium")
+   (require 'ob-chromium)
+   #+end_src
+3. Add =chromium= to the babel languages:
+   #+begin_src elisp
+   (org-babel-do-load-languages
+    'org-babel-load-languages
+    '((chromium . t)
+      (your-other-languages . t)))
+   #+end_src
+4. Write a =#+begin_src chromium= block and press =C-c C-c= on it, or
+   export the document.
+
+To see the image inline after each run:
+
+#+begin_src elisp
+(add-hook 'org-babel-after-execute-hook #'org-redisplay-inline-images)
+#+end_src
+
+Org asks before it evaluates a block. To skip the question for
+=chromium= blocks only:
+
+#+begin_src elisp
+(setq org-confirm-babel-evaluate
+      (lambda (lang _body) (not (string= lang "chromium"))))
+#+end_src
+
+* How a block is rendered
+
+The body of the block is HTML. When it is a fragment, the package
+wraps it in a document with a =<style>= element that holds the CSS
+from =:css=, and a =<base href>= that points at the directory of the
+org file, so =<img src="figure.png">= resolves beside it. When the
+body starts with =<!DOCTYPE= or =<html>=, it is a full document and
+the =<style>= and =<base>= go before =</head>=. =C-c C-v v= shows the
+assembled document.
+
+Chromium runs once with =--headless --screenshot= in a fresh profile
+directory, so a running browser does not interfere. With
+=:fit content= or =:selector= it runs twice: the first run measures,
+the second captures. On success nothing is shown. On failure
+Chromium's standard error is in =*Org-Babel Error Output*=.
+
+* Header arguments
+
+| Argument      | Default                  | Meaning                                                                                       |
+|---------------+--------------------------+-----------------------------------------------------------------------------------------------|
+| =:file=       | =<name>.png=             | Output file, =.png= or =.pdf=. A block with =#+NAME:= can omit it. =:output-dir= is prefixed. |
+| =:css=        |                          | Space separated names of =css= source blocks in the buffer, or CSS file paths, inlined in order. |
+| =:width=      | 1280                     | Window width in CSS pixels.                                                                   |
+| =:height=     | 800                      | Window height in CSS pixels.                                                                  |
+| =:fit=        | =viewport=               | =content= makes the height follow the content. The width stays =:width=.                     |
+| =:selector=   |                          | CSS selector of one element. The image is that element alone, at its own size.               |
+| =:scale=      | 1                        | Device scale factor. =2= gives a sharp image with twice the pixels.                           |
+| =:background= | white                    | =transparent=, or a 6 or 8 digit hex colour, with or without =#=.                             |
+| =:delay=      |                          | Virtual time budget in ms. Runs timers ahead before the capture.                              |
+| =:timeout=    | =ob-chromium-timeout=    | Milliseconds to wait for the page before capturing it anyway.                                 |
+| =:document=   | detected                 | =yes= treats the body as a full document, =no= wraps it.                                      |
+| =:keep-html=  | =no=                     | =yes= keeps the assembled document as =<output>.html= beside the output.                      |
+| =:cmdline=    |                          | More Chromium flags, verbatim.                                                                |
+
+=:results file= and =:exports results= are the defaults, as in
+=ob-mermaid=. Noweb references and =:cache= work as for any language.
+=:cache= hashes the block and its header arguments but not the body
+of a CSS block named in =:css=, so re-run with =C-u C-c C-c= after a
+CSS change.
+
+* Customization
+
+All variables are in the =org-babel= group.
+
+| Variable                           | Default | Purpose                                                                 |
+|------------------------------------+---------+-------------------------------------------------------------------------|
+| =ob-chromium-executable=           | =nil=   | Path to the browser. =nil= searches =ob-chromium-candidates=.           |
+| =ob-chromium-candidates=           | list    | Browser names and absolute paths tried in order.                        |
+| =ob-chromium-extra-args=           | =nil=   | Flags added to every run.                                               |
+| =ob-chromium-default-width=        | 1280    | Window width without =:width=.                                          |
+| =ob-chromium-default-height=       | 800     | Window height without =:height=.                                        |
+| =ob-chromium-timeout=              | 30000   | =--timeout= in ms without =:timeout=.                                   |
+| =ob-chromium-temporary-directory=  | =nil=   | Where the document and profile are written. =nil= uses org's directory. |
+| =ob-chromium-template=             | string  | The document wrapped around a fragment. =%u= base URL, =%c= CSS, =%b= body. |
+
+** Chromium from snap
+
+A snap installed Chromium cannot read =/tmp= of the host, so the run
+fails with a file not found error. Point the temporary directory at a
+directory under your home that does not start with a period:
+
+#+begin_src elisp
+(setq ob-chromium-temporary-directory "~/tmp/ob-chromium/")
+#+end_src
+
+** Containers and root
+
+Chromium refuses to start as root without a sandbox:
+
+#+begin_src elisp
+(setq ob-chromium-extra-args '("--no-sandbox"))
+#+end_src
+
+* Coming from ob-html-chrome
+
+| =ob-html-chrome=                          | =ob-chromium=                                     |
+|-------------------------------------------+---------------------------------------------------|
+| =#+begin_src html-chrome=                 | =#+begin_src chromium=                            |
+| =org-babel-html-chrome-chrome-executable= | =ob-chromium-executable=, optional                |
+| =:file name= without extension            | =:file name.png=, or =#+NAME: name= and no =:file= |
+| =:flags "--window-size=320,240"=          | =:width 320 :height 240=                          |
+| =:flags "--force-device-scale-factor=2"=  | =:scale 2=                                        |
+| =:flags= for anything else                | =:cmdline=                                        |
+| =:url=                                    | not supported                                     |
+| =:exports both= by default                | =:exports results= by default                     |
+
+* Development
+
+#+begin_src shell
+./dev-test.sh check        # emacs and a browser
+./dev-test.sh syntax       # byte-compile, warnings are errors
+./dev-test.sh lint         # checkdoc, package-lint when installed
+./dev-test.sh unit         # ERT; integration tests skip without a browser
+./dev-test.sh batch        # render every block of test-example.org
+./dev-test.sh interactive  # open test-example.org with the package loaded
+#+end_src
+
+=OB_CHROMIUM_EXECUTABLE= names the browser and =OB_CHROMIUM_EXTRA_ARGS=
+adds flags, for example =--no-sandbox= in a container. CI runs the
+same commands on Emacs 27.2 to 30.1.
+
+* License
+
+GPL-3.0-or-later. See =LICENSE=.
