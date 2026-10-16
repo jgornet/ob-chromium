@@ -125,9 +125,10 @@ directory under your home that does not start with a period:
 (setq ob-chromium-temporary-directory "~/tmp/ob-chromium/")
 #+end_src
 
-** Containers and root
+** Containers, root and CI runners
 
-Chromium refuses to start as root without a sandbox:
+Chromium refuses to start as root, in most containers and on Ubuntu
+24.04 GitHub runners without a sandbox:
 
 #+begin_src elisp
 (setq ob-chromium-extra-args '("--no-sandbox"))
