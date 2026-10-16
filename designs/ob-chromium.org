@@ -1,8 +1,69 @@
 #+TITLE: An org-babel language that renders HTML and CSS to a screenshot with headless Chromium
 #+DATE: 2026-10-16
-#+STATUS: Decided. Open questions 1-14 were decided on 2026-10-16. Questions 4 and 10 went against the recommendation: the =:document= header argument overrides full document detection, and =:selector= element capture is in the first version. Implementation of the Work plan is in progress. See Progress.
+#+STATUS: Implemented and tagged =0.1.0= on 2026-10-16. Open questions 1-14 were decided on 2026-10-16; questions 4 and 10 went against the recommendation. Work plan steps 1-11 are done, except that the MELPA recipe of step 10 is not submitted because the repository has no remote yet. Open questions 15 and 16, raised during implementation, carry the choices the code makes and are to be decided. All checks pass in a Docker container with Emacs 29.4 and Chromium 155; nothing has run on a Mac or on another Emacs version yet. See Progress.
 #+OPTIONS: toc:2 num:nil ^:nil
 #+HTML_HEAD: <link rel="stylesheet" href="file:///Users/jamesgornet/Dropbox/GitHub/orgcss/build/org.css"/>
+
+* Progress
+
+As of 2026-10-16. Step numbers are those of the Work plan. Every
+commit is on =main= in this repository, tag =0.1.0= at =24e3a32=.
+
+| Step | What                                                    | State                                              |
+|------+---------------------------------------------------------+----------------------------------------------------|
+| 0    | This design document                                    | Done, =372a21a=                                      |
+| 1    | Package skeleton                                        | Done, =95b8831=                                      |
+| 2    | =ob-chromium--executable=, =ob-chromium--run=               | Done, =bf53057=                                      |
+| 3    | Document assembly, =:css=, =org-babel-expand-body:chromium= | Done, =ed12436=                                      |
+| 3a   | =:document= override                                      | Done, =d6444d5=                                      |
+| 4    | =org-babel-execute:chromium=, viewport mode               | Done, =32015be=                                      |
+| 5    | =:fit content=                                            | Done, =de6581b=                                      |
+| 5a   | =:selector=                                               | Done, =a2852e0=                                      |
+| 6    | PDF output                                              | Done, =ea120ea=                                      |
+| 7a   | =--disable-infobars=                                      | Done, =de95c41=. Added during step 7, see below      |
+| 7    | =test-example.org=, =test-init.el=, =dev-test.sh=             | Done, =7b02f1d=                                      |
+| 8    | CI, lint                                                | Done, =8f894ea=. Not yet run on GitHub               |
+| 9    | =README.org=                                              | Done, =24e3a32=                                      |
+| 10   | Tag =0.1.0=, MELPA recipe                                 | Tagged. Recipe not submitted: no remote repository |
+| 11   | Measurement                                             | Done, see Measurement, Results                     |
+
+** Pull requests
+
+None. The repository has no remote. Every step is a commit on =main=.
+
+** What has been verified
+
+| Check                                                    | Where                                        | Result                                               |
+|----------------------------------------------------------+----------------------------------------------+------------------------------------------------------|
+| =dev-test.sh syntax=, byte-compile with warnings as errors | Docker, Emacs 29.4                           | Pass                                                 |
+| =dev-test.sh lint=, =checkdoc= and =package-lint=              | Docker, Emacs 29.4                           | Pass                                                 |
+| =dev-test.sh unit=, 44 ERT tests, 12 of them integration   | Docker, Emacs 29.4, org 9.6.15, Chromium 155 | 44 pass                                              |
+| =dev-test.sh batch=, 13 blocks of =test-example.org=         | Docker, as above                             | 13 rendered. The PNGs were read and show the content |
+| Window sizes 50 to 1280 px wide, 50 to 2000 px tall      | Docker, Chromium 155 directly                | Painted in full with =--disable-infobars=              |
+| Measurement, 10 runs per case                            | Docker, as above                             | See Results                                          |
+
+Not verified: Emacs 27.2, 28.2 and 30.1, macOS, Windows, Chrome or
+Brave or Edge as the browser, =chrome-headless-shell=, a snap
+Chromium, an interactive session with inline images, and export. The
+CI workflow is written but has not run, because the repository has
+no GitHub remote. The container has no sandbox, so every run there
+used =--no-sandbox= through =ob-chromium-extra-args=.
+
+** Where the code differs from the design
+
+- The selector probe script isolates the element when the script
+  runs, at the end of =<body>=, and measures on the load event. The
+  design had both on the load event. The capture run then shows the
+  isolated element whatever the order of the load handlers. The
+  Element capture section is updated to the code.
+- The command line carries =--disable-infobars=, which the design
+  did not have (open question 15).
+- The output file is deleted before Chromium runs, so a failed run
+  cannot leave a stale image that passes the existence check. The
+  design did not say so. Added to Running Chromium and reporting
+  errors.
+- Error messages start with a capital letter and have no
+  =ob-chromium:= prefix, because =checkdoc= requires it.
 
 * Summary
 
@@ -180,20 +241,30 @@ classDiagram
     }
     class Document_assembly {
         <<ob-chromium.el, new>>
+        ob-chromium--param(key, params) string  [new]
         ob-chromium--css(params) string  [new]
         ob-chromium--named-block-body(name) string  [new]
         ob-chromium--full-document-p(body) boolean  [new]
         ob-chromium--assemble(body, css, base-url, document) string  [new]
-        ob-chromium--probe-script(selector) string  [new]
-        ob-chromium--write-document(html) path  [new]
+        ob-chromium--file-url(path) string  [new]
+        ob-chromium--base-url() string  [new]
     }
     class Chromium_driver {
         <<ob-chromium.el, new>>
         ob-chromium--executable() path  [new]
-        ob-chromium--command(exe, url, params, width, height, mode) list  [new]
         ob-chromium--run(args) list  [new]
-        ob-chromium--measure(exe, url, params) cons  [new]
+        ob-chromium--background(value) string  [new]
         ob-chromium--output-file(params) path  [new]
+        ob-chromium--pdf-p(out) boolean  [new]
+        ob-chromium--temp-directory() path  [new]
+        ob-chromium--write-document(html, file)  [new]
+        ob-chromium--command(exe, url, profile, width, height, mode, out, params) list  [new]
+        ob-chromium--check(result, out)  [new]
+        ob-chromium--probe-script(selector) string  [new]
+        ob-chromium--append-probe(html, script) string  [new]
+        ob-chromium--parse-size(dom) cons  [new]
+        ob-chromium--parse-error(dom) string  [new]
+        ob-chromium--measure(exe, url, profile, width, height, params) string  [new]
     }
     class Customization {
         <<defcustom, new>>
@@ -232,7 +303,7 @@ classDiagram
 Green is new, grey is org code the package calls and does not
 change. Nothing is changed, because the package is new. The three
 groups are sections of one file, not separate files (open question
-12).
+12). The diagram lists the functions as implemented at =24e3a32=.
 
 ** Schema and messages
 
@@ -433,7 +504,8 @@ package creates a profile directory =ob-chromium-profile-<hash>= in
 the same place and passes it as =--user-data-dir= (open question 8).
 Both are deleted after Chromium exits, on success and on failure.
 With =:keep-html yes= the package copies the document beside the
-output file as =<output>.html= before deleting the temporary one.
+output file, with the output file's extension replaced by =.html=,
+before deleting the temporary one.
 
 A snap installed Chromium cannot read =/tmp= of the host. Such a user
 sets =ob-chromium-temporary-directory= to a directory under =$HOME=
@@ -471,6 +543,7 @@ spaces need no quoting. The list is:
 | =--headless=                                               | always                                         |
 | =--disable-gpu=                                            | always                                         |
 | =--hide-scrollbars=                                        | always                                         |
+| =--disable-infobars=                                       | always (open question 15)                      |
 | =--user-data-dir=<profile>=                                | always (open question 8)                       |
 | =--window-size=<W>,<H>=                                    | =:width=, =:height=, or the two =defcustom= defaults |
 | =--force-device-scale-factor=<N>=                          | =:scale=, when given (open question 14)          |
@@ -500,6 +573,8 @@ code and both strings. Standard error is kept for the error message
 only. Chromium writes warnings to standard error on every run, so the
 package shows nothing on success (open question 11).
 
+The package deletes an existing output file before Chromium runs, so
+a failed run cannot leave an old image behind that looks current.
 The execution fails when the exit code is not 0, or when the output
 file does not exist or is empty after Chromium exits. In both cases
 the package calls =org-babel-eval-error-notify= with the exit code and
@@ -549,7 +624,7 @@ selector the script is:
 
 #+begin_src html
 <script>
-addEventListener("load", function () {
+(function () {
   var d = document.documentElement;
   var el = document.querySelector(SELECTOR);
   if (!el) {
@@ -558,16 +633,21 @@ addEventListener("load", function () {
   }
   document.body.replaceChildren(el);
   document.body.style.margin = "0";
-  var r = el.getBoundingClientRect();
-  d.setAttribute("data-ob-chromium-size",
-                 Math.ceil(r.width) + "x" + Math.ceil(r.height));
-});
+  addEventListener("load", function () {
+    var r = el.getBoundingClientRect();
+    d.setAttribute("data-ob-chromium-size",
+                   Math.ceil(r.width) + "x" + Math.ceil(r.height));
+  });
+})();
 </script>
 #+end_src
 
 =SELECTOR= is the header argument as a JSON string, so quotes and
-backslashes in it are escaped. The script keeps the selected element
-and removes every other child of =<body>=. The element keeps its
+backslashes in it are escaped. The script runs when the parser
+reaches it at the end of =<body>=, so the DOM is complete. It keeps
+the selected element and removes every other child of =<body>= at
+once, and records the size on the load event, when images and fonts
+are in. The element keeps its
 styles, because the =<style>= element is in =<head>=. The second run
 uses the measured width and height as the window size, so the image
 is the element and nothing else. Margins of the element are outside
@@ -617,21 +697,21 @@ All variables are in the =org-babel= customization group, as in
 
 ** Package layout
 
-| File                       | Purpose                                                                 |
-|----------------------------+-------------------------------------------------------------------------|
-| =ob-chromium.el=             | The package. Header with =Package-Requires: ((emacs "27.1") (org "9.4"))= |
-| =ob-chromium-test.el=        | ERT tests, unit and integration                                         |
-| =test-example.org=           | One block per feature, executed by the batch test                       |
-| =test-init.el=               | Minimal init that loads the package and the test file                   |
-| =dev-test.sh=                | =check=, =clean=, =syntax=, =batch=, =interactive=, =all=, as in =ob-mermaid=         |
-| =.github/workflows/test.yml= | CI                                                                      |
-| =README.org=                 | Setup, header arguments, customization, the snap note, inline images    |
-| =LICENSE=                    | GPL-3.0, as org requires for a babel language                           |
-| =designs/ob-chromium.org=    | This document                                                           |
+| File                       | Purpose                                                                     |
+|----------------------------+-----------------------------------------------------------------------------|
+| =ob-chromium.el=             | The package. Header with =Package-Requires: ((emacs "27.1") (org "9.4"))=     |
+| =ob-chromium-test.el=        | ERT tests, unit and integration                                             |
+| =test-example.org=           | One block per feature, executed by the batch test                           |
+| =test-init.el=               | Minimal init that loads the package and the test file                       |
+| =dev-test.sh=                | =check=, =clean=, =syntax=, =lint=, =unit=, =batch=, =interactive=, =all=, as in =ob-mermaid= |
+| =.github/workflows/test.yml= | CI                                                                          |
+| =README.org=                 | Setup, header arguments, customization, the snap note, inline images        |
+| =LICENSE=                    | GPL-3.0, as org requires for a babel language                               |
+| =designs/ob-chromium.org=    | This document                                                               |
 
 The MELPA recipe is
-=(ob-chromium :fetcher github :repo "jgornet/ob-chromium")= and is
-submitted in step 10 of the Work plan.
+=(ob-chromium :fetcher github :repo "jgornet/ob-chromium")=. Step 10
+of the Work plan submits it once the repository is on GitHub.
 
 ** What is not covered
 
@@ -709,6 +789,11 @@ A user of =ob-mermaid= finds =:file=, =:width=, =:height=, =:scale=,
   default. After it, Chromium captures what it has.
 - The body draws with JavaScript after a timer. =:delay <ms>= passes
   =--virtual-time-budget=, which runs timers ahead before capture.
+- The window is under about 145 px tall. Without =--disable-infobars=
+  the new headless mode reserves room for an infobar inside the
+  window, paints the page only below it and captures the whole
+  window, so the image is blank or cut. The package passes the flag
+  on every run (open question 15).
 - Content is taller than =:height= in viewport mode. The image stops
   at =:height=. No scrollbar is drawn (open question 6).
 - Content is wider than =:width= in content mode. The width stays
@@ -751,25 +836,26 @@ A user of =ob-mermaid= finds =:file=, =:width=, =:height=, =:scale=,
 
 * Testing
 
-| Level       | Check                                                                                                                             |
-|-------------+-----------------------------------------------------------------------------------------------------------------------------------|
-| Static      | =byte-compile-file= with no warnings, =checkdoc=, =package-lint=                                                                        |
-| Unit, ERT   | =ob-chromium--full-document-p= on fragments, documents, letter case, leading whitespace. =:document yes= and =:document no= override it |
-| Unit, ERT   | =ob-chromium--assemble=: fragment wrapped, full document gets =<base>= and =<style>= before =</head>=, without =</head>=                    |
-| Unit, ERT   | =ob-chromium--css=: named block, file, both in order, missing item signals =user-error=                                               |
-| Unit, ERT   | =ob-chromium--command=: every header argument appears as the right flag, =:background= forms, defaults                                |
-| Unit, ERT   | =ob-chromium--output-file=: =:file=, =:output-dir=, =#+NAME= with =:file-ext=, =.pdf=, =.jpg= refused                                           |
-| Unit, ERT   | =ob-chromium--measure= parses =data-ob-chromium-size= from a canned DOM dump, falls back when absent                                  |
-| Unit, ERT   | =ob-chromium--probe-script=: no selector gives the size script, a selector is escaped as a JSON string                              |
-| Integration | Skipped with =ert-skip= when no executable is found. Otherwise: a block renders to a PNG whose IHDR says 1280x800                   |
-| Integration | =:scale 2= gives 2560x1600. =:fit content= on a 2000 px tall body gives a height of 2000 or more                                      |
-| Integration | =:css= from a named block changes a pixel colour read from the PNG                                                                  |
-| Integration | =.pdf= output starts with =%PDF=                                                                                                      |
-| Integration | =:selector= on a 300x200 px =<div>= among other content gives a 300x200 PNG. A selector that matches nothing signals =user-error=       |
-| Integration | A failing run, =:cmdline --bad-flag= or an unreadable path, signals =user-error= and leaves no temporary files                        |
-| Batch       | =dev-test.sh batch= executes every block of =test-example.org= in =emacs --batch= and checks each output file                           |
-| CI          | GitHub Actions: Emacs 27.2, 28.2, 29.4 and 30.1 on Ubuntu, 30.1 on macOS, Chrome from =browser-actions/setup-chrome=                |
-| Manual      | =dev-test.sh interactive=: =C-c C-c= on each block, inline image shows, =C-c C-v v= shows the document                                  |
+| Level       | Check                                                                                                                                                                                      |
+|-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Static      | =dev-test.sh syntax= and =dev-test.sh lint=: byte-compile with warnings as errors, =checkdoc=, =package-lint=                                                                                      |
+| Unit, ERT   | =ob-chromium--full-document-p= on fragments, documents, letter case, leading whitespace. =:document yes= and =:document no= override it                                                          |
+| Unit, ERT   | =ob-chromium--assemble=: fragment wrapped, full document gets =<base>= and =<style>= before =</head>=, without =</head>=                                                                             |
+| Unit, ERT   | =ob-chromium--css=: named block, file, both in order, missing item signals =user-error=                                                                                                        |
+| Unit, ERT   | =ob-chromium--command=: every header argument appears as the right flag, =:background= forms, defaults                                                                                         |
+| Unit, ERT   | =ob-chromium--output-file=: =:file=, =:output-dir=, =#+NAME= with =:file-ext=, =.pdf=, =.jpg= refused                                                                                                    |
+| Unit, ERT   | =ob-chromium--measure= parses =data-ob-chromium-size= from a canned DOM dump, falls back when absent                                                                                           |
+| Unit, ERT   | =ob-chromium--probe-script=: no selector gives the size script, a selector is escaped as a JSON string                                                                                       |
+| Integration | Skipped with =ert-skip= when no executable is found. Otherwise: a block renders to a PNG whose IHDR says 1280x800                                                                            |
+| Integration | =:width 100 :height 50 :scale 2= gives 200x100 and =:background transparent= gives an RGBA PNG. =:fit content= on a 1200 px tall body gives a height of 1200 to 1299 at the width given          |
+| Integration | =:css= from a named block is in the document kept with =:keep-html yes=, and a named block without =:file= writes =<name>.png=. =:output-dir= is created                                             |
+| Integration | A 300x100 window is painted in full: the PNG is over 1000 bytes, where a blank capture is about 370 (open question 15)                                                                     |
+| Integration | =.pdf= output starts with =%PDF=                                                                                                                                                               |
+| Integration | =:selector= on a 300x200 px =<div>= among other content gives a 300x200 PNG. A selector that matches nothing signals =user-error=                                                                |
+| Integration | A browser that exits 1 signals =user-error=, puts its standard error in =*Org-Babel Error Output*=, writes no image and leaves no temporary files. An empty body and a bad =:fit= are =user-error= |
+| Batch       | =dev-test.sh batch= executes every block of =test-example.org= in =emacs --batch= and checks each output file                                                                                    |
+| CI          | GitHub Actions: Emacs 27.2, 28.2, 29.4 and 30.1 on Ubuntu, 30.1 on macOS, Chrome from =browser-actions/setup-chrome=                                                                         |
+| Manual      | =dev-test.sh interactive=: =C-c C-c= on each block, inline image shows, =C-c C-v v= shows the document                                                                                           |
 
 PNG dimensions are read from the IHDR chunk, bytes 16 to 23 of the
 file, so the integration tests do not need an Emacs built with image
@@ -784,23 +870,46 @@ a persistent browser is worth a later version.
 
 ** Results
 
-Not measured yet. Nothing is implemented. Step 11 of the Work plan
-records 10 runs of each case with =benchmark-run= on this machine and
-on a Mac, with the Chromium version and the commit.
+Measured on 2026-10-16 in a Docker container on this machine, an
+Intel Core i9-7940X, with Emacs 29.4, org 9.6.15 and Chromium
+155.0.8059.79 from Debian 13, the package at =24e3a32=, with
+=benchmark-run= around =org-babel-execute-src-block=. The block body
+is a heading and 12 paragraphs of text, 1280x800 unless the header
+says otherwise. 10 runs per case, in seconds.
+
+| Case                 | Runs                                              | Median | PNG size |
+|----------------------+---------------------------------------------------+--------+----------|
+| Viewport, no options | 0.50 0.50 0.51 0.50 0.59 0.53 0.55 0.52 0.53 0.50 | 0.52   | 92712 B  |
+| =:fit content=         | 0.84 0.84 0.83 0.83 0.90 0.97 0.80 0.87 0.82 0.81 | 0.84   | 92168 B  |
+| =:selector h1=         | 0.79 0.77 0.77 0.83 0.80 0.76 0.78 0.78 0.81 0.77 | 0.78   | 1670 B   |
+| =:scale 2=             | 0.60 0.70 0.66 0.68 0.67 0.69 0.67 0.72 0.72 0.72 | 0.68   | 224650 B |
+
+What the numbers say:
+
+- One Chromium run costs about 0.5 s on this machine. The two-pass
+  modes cost about 0.3 s more, not twice as much, because the
+  measurement run has no image to encode.
+- The default of =:fit= stays =viewport= (open question 6). The
+  difference is 0.3 s, so a user who wants =content= everywhere can
+  set it in =#+PROPERTY: header-args:chromium= at no large cost.
+- =:scale 2= costs 0.15 s more and the PNG is 2.4 times the size,
+  under the 3 times expected.
+- The measurement cannot resolve a Mac or a laptop, where the start
+  time is likely longer, and it says nothing about network content.
 
 ** Benchmarks
 
-None yet.
+None beyond Results.
 
 ** Expected values
 
-| Case                                   | Expected                                  |
-|----------------------------------------+-------------------------------------------|
-| Viewport mode, 1280x800, local content | 0.5 s to 1.5 s, almost all Chromium start |
-| Content mode                           | twice the viewport time                   |
-| PNG, 1280x800, text on white, scale 1  | 50 KB to 200 KB                           |
-| PNG, scale 2                           | about 3 times the scale 1 size            |
-| Profile directory per run              | 1 MB to 10 MB, deleted after the run      |
+| Case                                   | Expected                                            |
+|----------------------------------------+-----------------------------------------------------|
+| Viewport mode, 1280x800, local content | 0.5 s to 1.5 s, almost all Chromium start           |
+| Content mode                           | twice the viewport time. Measured: 1.6 times        |
+| PNG, 1280x800, text on white, scale 1  | 50 KB to 200 KB                                     |
+| PNG, scale 2                           | about 3 times the scale 1 size. Measured: 2.4 times |
+| Profile directory per run              | 1 MB to 10 MB, deleted after the run                |
 
 * Open questions
 
@@ -892,6 +1001,8 @@ None yet.
    - Decision :: A.
    - Reflected in: Design, Viewport and content fit; Edge cases;
      Measurement.
+   - Measured on 2026-10-16: =content= costs 0.3 s more than
+     =viewport= per block (Measurement, Results). The default stays A.
 7. Where is the temporary document written?
    - Option A :: =org-babel-temporary-directory=, with =<base href>=
      pointing at the org file's directory. Nothing is written beside
@@ -986,6 +1097,35 @@ None yet.
     - Decision :: A.
     - Reflected in: Design, The command line; Measurement, Expected
       values.
+15. How does the package keep small windows from coming out blank?
+    Raised on 2026-10-16 by the batch test of step 7: a 300x100 block
+    rendered only its background. The new headless mode reserves room
+    for an infobar inside the window, paints the page only below it
+    and captures the whole window. Windows under about 145 px tall
+    lose content, and the probe reported a 13 px viewport for a
+    100 px window.
+    - Option A :: Pass =--disable-infobars= on every run. Removes the
+      reservation. Tested on sizes from 50x50 to 1280x2000.
+    - Option B :: Pass =--kiosk= or =--start-fullscreen=. Also removes
+      it, but changes what the page sees in =window= and media
+      queries.
+    - Option C :: Render in a window at least 150 px tall and accept
+      a taller image than asked for.
+    - Recommendation :: A.
+    - The body is written for A and the code at =de95c41= does A.
+    - TODO Decide.
+16. What does =:selector= do when =:fit= is =viewport= or absent?
+    Raised on 2026-10-16 while implementing the decision on question
+    10, whose option A says the selector works only with
+    =:fit content=.
+    - Option A :: The selector turns the measurement pass on whatever
+      =:fit= says. =:fit= has no effect with =:selector=.
+    - Option B :: =:selector= without =:fit content= is a
+      =user-error=.
+    - Recommendation :: A. The selector cannot work without the
+      measurement, and asking for both is one more thing to type.
+    - The body is written for A and the code at =a2852e0= does A.
+    - TODO Decide.
 
 * Work plan
 
@@ -1021,6 +1161,9 @@ The steps are in order. Each step is one commit on =main= in
 7. =test-example.org= with one block per header argument,
    =test-init.el=, =dev-test.sh= ported from =ob-mermaid= with the
    file list of the new test document.
+7a. =--disable-infobars= on every run, with a regression test on a
+   300x100 window. Added on 2026-10-16 when the batch test of step 7
+   showed blank images (open question 15).
 8. CI: =.github/workflows/test.yml= with the Emacs matrix,
    =browser-actions/setup-chrome=, static checks, ERT and the batch
    test.
@@ -1028,7 +1171,9 @@ The steps are in order. Each step is one commit on =main= in
    =:selector=, customization, the =ob-html-chrome= migration table,
    the snap note, =--no-sandbox=, inline images,
    =org-confirm-babel-evaluate=.
-10. Tag =0.1.0=. Submit the MELPA recipe.
+10. Tag =0.1.0=. Submit the MELPA recipe once the repository has a
+    GitHub remote.
 11. Measurement: 10 runs per case of the Expected values table on
     this machine and a Mac. Record under Results. Revisit open
-    question 6 with the figures.
+    question 6 with the figures. Done on this machine in Docker; the
+    Mac is pending.
