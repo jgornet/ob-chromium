@@ -20,6 +20,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'cl-lib)
 (require 'ob-chromium)
 
 ;;;; Executable
@@ -188,6 +189,182 @@
     (let ((doc (org-babel-expand-body:chromium "<q>x</q>" '((:css . "t")))))
       (should (string-match-p "q { z: 3 }" doc))
       (should (string-match-p "<base href=\"file://" doc)))))
+
+;;;; Command line and output file
+
+(ert-deftest ob-chromium-test-background ()
+  "transparent, 6 and 8 digit colours map to RRGGBBAA; others error."
+  (should (equal (ob-chromium--background "transparent") "00000000"))
+  (should (equal (ob-chromium--background "#ff0000") "ff0000FF"))
+  (should (equal (ob-chromium--background "00ff0080") "00ff0080"))
+  (should-error (ob-chromium--background "red") :type 'user-error))
+
+(ert-deftest ob-chromium-test-output-file ()
+  ":file is made absolute; .png and .pdf pass; others and none error."
+  (let ((default-directory "/d/"))
+    (should (equal (ob-chromium--output-file '((:file . "a.png"))) "/d/a.png"))
+    (should (equal (ob-chromium--output-file '((:file . "sub/a.PDF"))) "/d/sub/a.PDF")))
+  (should-error (ob-chromium--output-file '((:file . "a.jpg"))) :type 'user-error)
+  (should-error (ob-chromium--output-file '((:file . "a"))) :type 'user-error)
+  (should-error (ob-chromium--output-file '((:file-ext . "png"))) :type 'user-error))
+
+(ert-deftest ob-chromium-test-command-defaults ()
+  "The command carries the fixed flags, the window size and the timeout."
+  (let* ((ob-chromium-extra-args nil)
+         (ob-chromium-timeout 30000)
+         (cmd (ob-chromium--command "/x/chromium" "file:///t/d.html" "/t/p"
+                                    1280 800 'screenshot "/o/out.png" nil)))
+    (should (equal (car cmd) "/x/chromium"))
+    (should (member "--headless" cmd))
+    (should (member "--disable-gpu" cmd))
+    (should (member "--hide-scrollbars" cmd))
+    (should (member "--user-data-dir=/t/p" cmd))
+    (should (member "--window-size=1280,800" cmd))
+    (should (member "--timeout=30000" cmd))
+    (should (member "--screenshot=/o/out.png" cmd))
+    (should (equal (car (last cmd)) "file:///t/d.html"))
+    (should-not (seq-some (lambda (a) (string-prefix-p "--force-device-scale-factor" a)) cmd))
+    (should-not (seq-some (lambda (a) (string-prefix-p "--virtual-time-budget" a)) cmd))
+    (should-not (seq-some (lambda (a) (string-prefix-p "--default-background-color" a)) cmd))))
+
+(ert-deftest ob-chromium-test-command-header-args ()
+  "Every header argument becomes its flag; extra args and :cmdline pass through."
+  (let* ((ob-chromium-extra-args '("--no-sandbox"))
+         (cmd (ob-chromium--command "c" "u" "p" 400 300 'screenshot "o.png"
+                                    '((:scale . 2) (:background . "transparent")
+                                      (:timeout . 5000) (:delay . 250)
+                                      (:cmdline . "--lang=de \"--user-agent=a b\"")))))
+    (should (member "--window-size=400,300" cmd))
+    (should (member "--force-device-scale-factor=2" cmd))
+    (should (member "--default-background-color=00000000" cmd))
+    (should (member "--timeout=5000" cmd))
+    (should (member "--virtual-time-budget=250" cmd))
+    (should (member "--no-sandbox" cmd))
+    (should (member "--lang=de" cmd))
+    (should (member "--user-agent=a b" cmd))))
+
+(ert-deftest ob-chromium-test-command-modes ()
+  "pdf adds --print-to-pdf and --no-pdf-header-footer, dump adds --dump-dom."
+  (let ((pdf (ob-chromium--command "c" "u" "p" 1 1 'pdf "o.pdf" nil))
+        (dump (ob-chromium--command "c" "u" "p" 1 1 'dump nil nil)))
+    (should (member "--print-to-pdf=o.pdf" pdf))
+    (should (member "--no-pdf-header-footer" pdf))
+    (should (member "--dump-dom" dump))
+    (should-not (seq-some (lambda (a) (string-prefix-p "--screenshot" a)) dump))))
+
+(ert-deftest ob-chromium-test-check ()
+  "A non-zero exit or a missing or empty output file is a `user-error'."
+  (let ((out (make-temp-file "ob-chromium-test-out")))
+    (unwind-protect
+        (progn
+          (should-error (ob-chromium--check (list 1 "" "boom") out) :type 'user-error)
+          (should-error (ob-chromium--check (list 0 "" "") out) :type 'user-error)
+          (with-temp-file out (insert "x"))
+          (should-not (ob-chromium--check (list 0 "" "warning noise") out))
+          (should-error (ob-chromium--check (list 0 "" "") "/nonexistent/x.png") :type 'user-error))
+      (delete-file out))))
+
+;;;; Integration: these run only when a browser is found
+
+(defun ob-chromium-test--browser ()
+  "Return the browser path, or nil."
+  (ignore-errors
+    (let ((ob-chromium--executable-cache nil))
+      (ob-chromium--executable))))
+
+(defun ob-chromium-test--extra-args ()
+  "Return `ob-chromium-extra-args' plus OB_CHROMIUM_EXTRA_ARGS."
+  (append ob-chromium-extra-args
+          (split-string (or (getenv "OB_CHROMIUM_EXTRA_ARGS") "") nil t)))
+
+(defun ob-chromium-test--png-size (file)
+  "Return (WIDTH . HEIGHT) from the IHDR chunk of the PNG FILE."
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (insert-file-contents-literally file nil 0 24)
+    (let ((b (buffer-string)))
+      (cl-flet ((be32 (i) (logior (ash (aref b i) 24) (ash (aref b (+ i 1)) 16)
+                                  (ash (aref b (+ i 2)) 8) (aref b (+ i 3)))))
+        (cons (be32 16) (be32 20))))))
+
+(defun ob-chromium-test--png-colour-type (file)
+  "Return the colour type byte of the PNG FILE: 2 is RGB, 6 is RGBA."
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (insert-file-contents-literally file nil 0 26)
+    (aref (buffer-string) 25)))
+
+(defmacro ob-chromium-test--with-block (org-text &rest body)
+  "Execute the first chromium block of ORG-TEXT in a fresh directory.
+BODY runs afterwards in the org buffer with `dir' bound to that
+directory and `temp' to the temporary directory the package used.
+Skipped when no browser is found."
+  (declare (indent 1))
+  `(progn
+     (unless (ob-chromium-test--browser) (ert-skip "no Chromium found"))
+     (let* ((dir (make-temp-file "ob-chromium-test" t))
+            (temp (make-temp-file "ob-chromium-test-tmp" t))
+            (default-directory (file-name-as-directory dir))
+            (ob-chromium-temporary-directory temp)
+            (ob-chromium-extra-args (ob-chromium-test--extra-args))
+            (org-confirm-babel-evaluate nil))
+       (unwind-protect
+           (ob-chromium-test--with-org ,org-text
+             (re-search-forward "^#\\+begin_src chromium")
+             (beginning-of-line)
+             ,@body)
+         (delete-directory dir t)
+         (delete-directory temp t)))))
+
+(ert-deftest ob-chromium-test-integration-viewport ()
+  "A fragment renders to a PNG of the default window size and a link is inserted."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png\n<p>hello</p>\n#+end_src\n"
+    (org-babel-execute-src-block)
+    (should (equal (ob-chromium-test--png-size (expand-file-name "out.png" dir)) '(1280 . 800)))
+    (should (string-match-p "#\\+RESULTS:\n\\[\\[file:out.png\\]\\]" (buffer-string)))
+    (should-not (directory-files temp nil "ob-chromium"))))
+
+(ert-deftest ob-chromium-test-integration-size-scale-background ()
+  ":width, :height, :scale and :background transparent shape the PNG."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png :width 100 :height 50 :scale 2 :background transparent\n<p>hello</p>\n#+end_src\n"
+    (org-babel-execute-src-block)
+    (let ((png (expand-file-name "out.png" dir)))
+      (should (equal (ob-chromium-test--png-size png) '(200 . 100)))
+      (should (= (ob-chromium-test--png-colour-type png) 6)))))
+
+(ert-deftest ob-chromium-test-integration-named-block-and-css ()
+  "A named block needs no :file, and :css from a block is in the kept document."
+  (ob-chromium-test--with-block "#+NAME: theme\n#+begin_src css\nbody { background: #123456 }\n#+end_src\n\n#+NAME: shot\n#+begin_src chromium :css theme :keep-html yes :width 50 :height 40\n<p>x</p>\n#+end_src\n"
+    (org-babel-execute-src-block)
+    (should (equal (ob-chromium-test--png-size (expand-file-name "shot.png" dir)) '(50 . 40)))
+    (with-temp-buffer
+      (insert-file-contents (expand-file-name "shot.html" dir))
+      (should (string-match-p "background: #123456" (buffer-string))))
+    (should (string-match-p "\\[\\[file:shot.png\\]\\]" (buffer-string)))))
+
+(ert-deftest ob-chromium-test-integration-output-dir ()
+  ":output-dir is created and prefixed to :file."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png :output-dir img :width 10 :height 10\n<p>x</p>\n#+end_src\n"
+    (org-babel-execute-src-block)
+    (should (file-exists-p (expand-file-name "img/out.png" dir)))))
+
+(ert-deftest ob-chromium-test-integration-failure ()
+  "A browser that exits 1 gives a `user-error' and leaves no temporary files."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png\n<p>x</p>\n#+end_src\n"
+    (let ((fake (expand-file-name "fake-browser" dir)))
+      (with-temp-file fake (insert "#!/bin/sh\necho 'it broke' >&2\nexit 1\n"))
+      (set-file-modes fake #o755)
+      (let ((ob-chromium-executable fake))
+        (should-error (org-babel-execute-src-block) :type 'user-error))
+      (should-not (file-exists-p (expand-file-name "out.png" dir)))
+      (should-not (directory-files temp nil "ob-chromium"))
+      (with-current-buffer org-babel-error-buffer-name
+        (should (string-match-p "it broke" (buffer-string)))))))
+
+(ert-deftest ob-chromium-test-integration-empty-body ()
+  "An empty body is a `user-error' before Chromium starts."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png\n\n#+end_src\n"
+    (should-error (org-babel-execute-src-block) :type 'user-error)))
 
 (provide 'ob-chromium-test)
 
