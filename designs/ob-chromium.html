@@ -1,0 +1,1614 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2026-10-16 Fri 10:38 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>An org-babel language that renders HTML and CSS to a screenshot with headless Chromium</title>
+<meta name="author" content="James Gornet" />
+<meta name="generator" content="Org Mode" />
+<style type="text/css">
+  #content { max-width: 60em; margin: auto; }
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #e6e6e6;
+    border-radius: 3px;
+    background-color: #f2f2f2;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: auto;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    top: -8px;
+    right: 12px;
+    padding: 3px;
+    color: #555;
+    background-color: #f2f2f299;
+  }
+  pre.src:hover:before { display: inline; margin-top: 14px;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-authinfo::before { content: 'Authinfo'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .equation-container {
+    display: table;
+    text-align: center;
+    width: 100%;
+  }
+  .equation {
+    vertical-align: middle;
+  }
+  .equation-label {
+    display: table-cell;
+    text-align: right;
+    vertical-align: middle;
+  }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { }
+</style>
+<link rel="stylesheet" href="file:///Users/jamesgornet/Dropbox/GitHub/orgcss/build/org.css"/>
+</head>
+<body>
+<div id="content" class="content">
+<h1 class="title">An org-babel language that renders HTML and CSS to a screenshot with headless Chromium</h1>
+<div id="table-of-contents" role="doc-toc">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents" role="doc-toc">
+<ul>
+<li><a href="#orge5a7c49">Summary</a></li>
+<li><a href="#org6f8954e">Background</a>
+<ul>
+<li><a href="#orgfe7128f">What exists today</a></li>
+<li><a href="#orgfa554d0">Why the design changes</a></li>
+</ul>
+</li>
+<li><a href="#orgc484c90">Architecture</a>
+<ul>
+<li><a href="#org6443543">Components</a></li>
+<li><a href="#orgb40065c">Executing a block, end to end</a></li>
+<li><a href="#org558f320">Types and interfaces</a></li>
+<li><a href="#orgf166a53">Schema and messages</a></li>
+<li><a href="#org5775792">States</a></li>
+</ul>
+</li>
+<li><a href="#org5f67b12">Goals and non-goals</a>
+<ul>
+<li><a href="#orgb3568e7">Goals</a></li>
+<li><a href="#org823bd89">Non-goals</a></li>
+</ul>
+</li>
+<li><a href="#orgeb4f52e">Design</a>
+<ul>
+<li><a href="#org83abf45">Language name and editing mode</a></li>
+<li><a href="#org6d4a8ae">Default header arguments</a></li>
+<li><a href="#orgb4a3321">Where the CSS comes from</a></li>
+<li><a href="#org9703e59">Assembling the document</a></li>
+<li><a href="#orgabab54a">Where the temporary files go</a></li>
+<li><a href="#org055a0ae">Finding the executable</a></li>
+<li><a href="#org4c0784d">The command line</a></li>
+<li><a href="#org5889594">Running Chromium and reporting errors</a></li>
+<li><a href="#org5fd496a">Viewport and content fit</a></li>
+<li><a href="#org6c0277d">Output file and format</a></li>
+<li><a href="#org87c65cd">Configuration</a></li>
+<li><a href="#org0cdffe3">Package layout</a></li>
+<li><a href="#org66ca6ce">What is not covered</a></li>
+</ul>
+</li>
+<li><a href="#orgda01596">Migration</a></li>
+<li><a href="#org06475f3">Edge cases</a></li>
+<li><a href="#org5f9fbff">Testing</a></li>
+<li><a href="#org3c041bb">Measurement</a>
+<ul>
+<li><a href="#org9d4b5cf">Results</a></li>
+<li><a href="#orgb14f561">Benchmarks</a></li>
+<li><a href="#org3bcae0d">Expected values</a></li>
+</ul>
+</li>
+<li><a href="#orge5cb7bb">Open questions</a></li>
+<li><a href="#orga8246eb">Work plan</a></li>
+</ul>
+</div>
+</div>
+<div id="outline-container-orge5a7c49" class="outline-2">
+<h2 id="orge5a7c49">Summary</h2>
+<div class="outline-text-2" id="text-orge5a7c49">
+<p>
+<code>ob-chromium</code> is an Emacs package that adds the <code>chromium</code> language to
+org-babel. A <code>chromium</code> source block holds HTML. The block can name
+CSS source blocks or CSS files in a <code>:css</code> header argument. When the
+user executes the block, the package assembles one HTML document from
+the body and the CSS, writes the document to a temporary file, starts
+headless Chromium on that file with <code>--screenshot</code>, and inserts a
+<code>file:</code> link to the PNG as the block&rsquo;s result. The PNG shows inline in
+the org buffer and exports with the document.
+</p>
+
+<p>
+The package is one Elisp file with no dependency outside Emacs and
+org. It needs a Chromium family browser on the machine. It runs
+Chromium once per block with <code>call-process</code> and a fresh profile
+directory, so a running browser does not interfere (open questions 2
+and 8).
+</p>
+
+<p>
+The open questions that shape the design most are the language name
+(open question 1), how Emacs drives Chromium (open question 2), where
+the CSS comes from (open question 3), and whether the image follows
+the viewport or the content height (open question 6).
+</p>
+</div>
+</div>
+<div id="outline-container-org6f8954e" class="outline-2">
+<h2 id="org6f8954e">Background</h2>
+<div class="outline-text-2" id="text-org6f8954e">
+</div>
+<div id="outline-container-orgfe7128f" class="outline-3">
+<h3 id="orgfe7128f">What exists today</h3>
+<div class="outline-text-3" id="text-orgfe7128f">
+<p>
+<code>ob-mermaid</code> (<a href="https://github.com/arnm/ob-mermaid">https://github.com/arnm/ob-mermaid</a>) is the reference
+for this design. It is one file, <code>ob-mermaid.el</code>. It defines
+<code>org-babel-default-header-args:mermaid</code> as <code>:results file</code> and
+<code>:exports results</code>, reads each header argument from <code>params</code>, builds
+one shell command string for <code>mmdc</code>, and runs it with <code>org-babel-eval</code>
+with the block body on standard input. It requires <code>:file</code> and returns
+<code>nil</code>. Org inserts the link to <code>:file</code> because <code>:results file</code> is set
+and <code>:file</code> is present. Its repository also carries <code>test-example.org</code>,
+<code>test-init.el</code>, a <code>dev-test.sh</code> script with <code>check</code>, <code>syntax</code>, <code>batch</code>
+and <code>interactive</code> commands, and <code>mise.toml</code> for the toolchain.
+</p>
+
+<p>
+<code>ob-html-chrome</code> (<a href="https://github.com/nikclayton/ob-html-chrome">https://github.com/nikclayton/ob-html-chrome</a>) is the
+closest prior art. It defines the <code>html-chrome</code> language, writes the
+body to a temporary file beside the org file, runs
+<code>chrome --headless --disable-gpu --screenshot=&lt;file&gt;</code> through
+<code>org-babel-eval</code>, and returns the file name. It takes the output name
+from <code>:file</code>, then from <code>#+NAME</code>, then from the heading text. It
+passes extra flags verbatim through <code>:flags</code>. It depends on the <code>f</code>
+and <code>s</code> libraries, requires the user to set the Chrome path by hand,
+has no CSS support beyond what the body contains, and has not changed
+since 2018.
+</p>
+
+<p>
+Org itself provides the parts a language needs:
+</p>
+
+<ul class="org-ul">
+<li><code>org-babel-generate-file-param</code> derives <code>:file</code> from <code>#+NAME</code> and
+<code>:file-ext</code> and prefixes <code>:output-dir</code>.</li>
+<li><code>org-babel-execute-src-block</code> sets the result to <code>:file</code> when
+<code>:results</code> contains <code>file</code>, whatever the execute function returns.</li>
+<li><code>org-babel-find-named-block</code> and <code>org-babel-get-src-block-info</code> give
+the body of a named block in the buffer.</li>
+<li><code>org-babel-eval-error-notify</code> shows standard error in
+<code>*Org-Babel Error Output*</code>.</li>
+<li><code>org-src-lang-modes</code> maps a language name to the major mode used in
+<code>org-edit-special</code>.</li>
+</ul>
+
+<p>
+Headless Chromium provides the rendering. Since Chrome 112 the
+<code>--headless</code> flag runs the full browser without a window. Since Chrome
+132 the old headless mode is a separate binary,
+<code>chrome-headless-shell</code>. Both take <code>--screenshot=&lt;path&gt;</code>,
+<code>--print-to-pdf=&lt;path&gt;</code>, <code>--window-size=W,H</code>, <code>--dump-dom</code>,
+<code>--virtual-time-budget=&lt;ms&gt;</code>, <code>--timeout=&lt;ms&gt;</code>,
+<code>--default-background-color=RRGGBBAA</code>, <code>--hide-scrollbars</code>,
+<code>--force-device-scale-factor=N</code> and <code>--user-data-dir=&lt;dir&gt;</code>. The
+<code>--screenshot</code> flag captures the window, not the full page. There is
+no command line flag for a full page screenshot.
+</p>
+</div>
+</div>
+<div id="outline-container-orgfa554d0" class="outline-3">
+<h3 id="orgfa554d0">Why the design changes</h3>
+<div class="outline-text-3" id="text-orgfa554d0">
+<p>
+There is no maintained org-babel language that renders HTML and CSS
+to an image. <code>ob-html-chrome</code> is unmaintained, needs two libraries,
+and cannot take CSS from another block. Users who write HTML and CSS
+in org for documentation, slides or design notes need an image of the
+rendered result in the same document. The package gives that with the
+conventions of <code>ob-mermaid</code>, so a user of one package knows how the
+other works.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-orgc484c90" class="outline-2">
+<h2 id="orgc484c90">Architecture</h2>
+<div class="outline-text-2" id="text-orgc484c90">
+</div>
+<div id="outline-container-org6443543" class="outline-3">
+<h3 id="org6443543">Components</h3>
+<div class="outline-text-3" id="text-org6443543">
+
+<div id="org0dfe699" class="figure">
+<p><img src="ob-chromium-components.png" alt="ob-chromium-components.png" />
+</p>
+</div>
+
+<p>
+The package has one process boundary: Emacs starts Chromium with
+<code>call-process</code> and waits for it to exit (open question 2). Emacs and
+Chromium share only the filesystem.
+</p>
+</div>
+</div>
+<div id="outline-container-orgb40065c" class="outline-3">
+<h3 id="orgb40065c">Executing a block, end to end</h3>
+<div class="outline-text-3" id="text-orgb40065c">
+
+<div id="org2f5bdb8" class="figure">
+<p><img src="ob-chromium-flow.png" alt="ob-chromium-flow.png" />
+</p>
+</div>
+
+<p>
+The measurement pass runs only when <code>:fit</code> is <code>content</code> (open
+question 6). In the default <code>viewport</code> mode Chromium runs once.
+</p>
+</div>
+</div>
+<div id="outline-container-org558f320" class="outline-3">
+<h3 id="org558f320">Types and interfaces</h3>
+<div class="outline-text-3" id="text-org558f320">
+
+<div id="orge7d4ca9" class="figure">
+<p><img src="ob-chromium-types.png" alt="ob-chromium-types.png" />
+</p>
+</div>
+
+<p>
+Green is new, grey is org code the package calls and does not
+change. Nothing is changed, because the package is new. The three
+groups are sections of one file, not separate files (open question
+12).
+</p>
+</div>
+</div>
+<div id="outline-container-orgf166a53" class="outline-3">
+<h3 id="orgf166a53">Schema and messages</h3>
+<div class="outline-text-3" id="text-orgf166a53">
+<p>
+The package has no database and no network messages. Its two
+interfaces are the header arguments it reads and the command line it
+writes.
+</p>
+
+
+<div id="orgd26078e" class="figure">
+<p><img src="ob-chromium-schema.png" alt="ob-chromium-schema.png" />
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org5775792" class="outline-3">
+<h3 id="org5775792">States</h3>
+<div class="outline-text-3" id="text-org5775792">
+<p>
+No component changes state. Each execution is one pass from block to
+file. This section has nothing more to say.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org5f67b12" class="outline-2">
+<h2 id="org5f67b12">Goals and non-goals</h2>
+<div class="outline-text-2" id="text-org5f67b12">
+</div>
+<div id="outline-container-orgb3568e7" class="outline-3">
+<h3 id="orgb3568e7">Goals</h3>
+<div class="outline-text-3" id="text-orgb3568e7">
+<ul class="org-ul">
+<li>Execute a <code>chromium</code> source block and insert a <code>file:</code> link to a PNG
+that shows the rendered HTML and CSS.</li>
+<li>Take CSS from named <code>css</code> source blocks in the same buffer and from
+CSS files, through one header argument.</li>
+<li>Work with any Chromium family browser found on <code>exec-path</code> or at
+the usual install paths, with no configuration when one is
+installed.</li>
+<li>Depend on nothing outside Emacs 27.1 and org 9.4.</li>
+<li>Follow the conventions of <code>ob-mermaid</code>: <code>:results file</code>,
+<code>:exports results</code>, <code>:cmdline</code> pass-through, one <code>defcustom</code> for
+the executable path.</li>
+<li>Report a Chromium failure with Chromium&rsquo;s standard error, and stay
+silent on success.</li>
+<li>Carry the test harness of <code>ob-mermaid</code>: a test org file, a test
+init file, a script with <code>check</code>, <code>syntax</code>, <code>batch</code> and
+<code>interactive</code> commands, and CI.</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org823bd89" class="outline-3">
+<h3 id="org823bd89">Non-goals</h3>
+<div class="outline-text-3" id="text-org823bd89">
+<ul class="org-ul">
+<li>Screenshots of remote URLs. The body of the block is the content.</li>
+<li>Element capture by CSS selector in the first version (open question
+10).</li>
+<li>Asynchronous execution. Chromium runs in about 1 s and the user
+waits.</li>
+<li>Sessions. <code>org-babel-prep-session:chromium</code> signals an error.</li>
+<li><code>:var</code> substitution into the HTML. Noweb references work because org
+expands them before the execute function runs.</li>
+<li>Remote files over Tramp.</li>
+<li>Browsers outside the Chromium family.</li>
+<li>A live preview or a persistent browser process.</li>
+</ul>
+</div>
+</div>
+</div>
+<div id="outline-container-orgeb4f52e" class="outline-2">
+<h2 id="orgeb4f52e">Design</h2>
+<div class="outline-text-2" id="text-orgeb4f52e">
+</div>
+<div id="outline-container-org83abf45" class="outline-3">
+<h3 id="org83abf45">Language name and editing mode</h3>
+<div class="outline-text-3" id="text-org83abf45">
+<p>
+The language is <code>chromium</code>. A block starts with
+<code>#+begin_src chromium</code> (open question 1). On load the package adds
+<code>("chromium" . mhtml)</code> to <code>org-src-lang-modes</code>, so <code>org-edit-special</code>
+opens the body in <code>mhtml-mode</code> with HTML, CSS and JavaScript
+highlighting. The language is not <code>html</code>, because an
+<code>org-babel-execute:html</code> function would make <code>C-c C-c</code> on every
+existing <code>html</code> block try to render it, and every such block would
+then need <code>:file</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-org6d4a8ae" class="outline-3">
+<h3 id="org6d4a8ae">Default header arguments</h3>
+<div class="outline-text-3" id="text-org6d4a8ae">
+<div class="org-src-container">
+<pre class="src src-elisp">(<span style="color: #89DDFF;">defvar</span> <span style="color: #ffcb6b;">org-babel-default-header-args:chromium</span>
+  <span style="color: #89DDFF;">'</span>((<span style="color: #82aaff;">:results</span> . <span style="color: #c3e88d;">"file"</span>) (<span style="color: #82aaff;">:exports</span> . <span style="color: #c3e88d;">"results"</span>) (<span style="color: #82aaff;">:file-ext</span> . <span style="color: #c3e88d;">"png"</span>)))
+</pre>
+</div>
+
+<p>
+<code>:results file</code> makes org use <code>:file</code> as the result (What exists
+today). <code>:file-ext png</code> lets a named block omit <code>:file</code>: org derives
+<code>&lt;name&gt;.png</code> in <code>:output-dir</code> (open question 5). The package declares
+every header argument it reads in <code>org-babel-header-args:chromium</code>,
+so completion and <code>org-lint</code> know them.
+</p>
+</div>
+</div>
+<div id="outline-container-orgb4a3321" class="outline-3">
+<h3 id="orgb4a3321">Where the CSS comes from</h3>
+<div class="outline-text-3" id="text-orgb4a3321">
+<p>
+The <code>:css</code> header argument is a list of items separated by spaces
+(open question 3). The package resolves each item in order:
+</p>
+
+<ol class="org-ol">
+<li>When a source block in the current buffer has that <code>#+NAME</code>, the
+item is that block&rsquo;s body. The block&rsquo;s language is not checked, so
+a <code>scss</code> block that the user has compiled by other means still
+works as long as its body is CSS.</li>
+<li>Otherwise, when a file with that name exists relative to
+<code>default-directory</code>, the item is the file&rsquo;s contents.</li>
+<li>Otherwise the package signals <code>user-error</code> with the item name and
+stops before Chromium starts.</li>
+</ol>
+
+<p>
+The package joins the resolved bodies with a newline, in the order
+given, and puts them in one <code>&lt;style&gt;</code> element. It reads the file or
+block, it does not link to it, so the temporary document has no
+dependency on where it is written. The <code>:css</code> header argument can be
+set once for a subtree or a file with <code>#+PROPERTY: header-args:chromium :css theme</code>.
+A block with a <code>&lt;style&gt;</code> element in its body keeps it. Noweb
+references, <code>&lt;&lt;theme&gt;&gt;</code> in the body with <code>:noweb yes</code>, also work and
+need nothing from the package.
+</p>
+</div>
+</div>
+<div id="outline-container-org9703e59" class="outline-3">
+<h3 id="org9703e59">Assembling the document</h3>
+<div class="outline-text-3" id="text-org9703e59">
+<p>
+<code>ob-chromium--full-document-p</code> returns true when the body, after
+leading whitespace, starts with <code>&lt;!doctype</code> or <code>&lt;html</code> in any letter
+case (open question 4).
+</p>
+
+<p>
+When the body is a fragment, the package fills <code>ob-chromium-template</code>
+with <code>format-spec</code>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-elisp">(<span style="color: #89DDFF;">defcustom</span> <span style="color: #ffcb6b;">ob-chromium-template</span>
+  <span style="color: #c3e88d;">"&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset=\"utf-8\"&gt;
+&lt;base href=\"%u\"&gt;
+&lt;style&gt;
+%c
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+%b
+&lt;/body&gt;
+&lt;/html&gt;"</span>
+  <span style="color: #8d92af;">"Document the package wraps around a fragment.
+%u is the file URL of the org file's directory, %c the CSS, %b the body."</span>)
+</pre>
+</div>
+
+<p>
+When the body is a full document, the package inserts
+<code>&lt;base href&gt;</code> and the <code>&lt;style&gt;</code> element before the first <code>&lt;/head&gt;</code>.
+When there is no <code>&lt;/head&gt;</code>, it inserts them after the first <code>&lt;html ...&gt;</code>
+tag. The body is otherwise unchanged.
+</p>
+
+<p>
+<code>&lt;base href&gt;</code> points at <code>default-directory</code> of the org buffer, so an
+<code>&lt;img src</code>&ldquo;figure.png&rdquo;&gt;= in the body resolves beside the org file,
+wherever the temporary document is written (open question 7).
+</p>
+
+<p>
+<code>org-babel-expand-body:chromium</code> returns the assembled document. The
+user sees it with <code>C-c C-v v</code>, <code>org-babel-expand-src-block</code>. That is
+the first debugging step when a render is wrong.
+</p>
+</div>
+</div>
+<div id="outline-container-orgabab54a" class="outline-3">
+<h3 id="orgabab54a">Where the temporary files go</h3>
+<div class="outline-text-3" id="text-orgabab54a">
+<p>
+The package writes the document to <code>ob-chromium-&lt;hash&gt;.html</code> in
+<code>ob-chromium-temporary-directory</code> when that is set, and otherwise in
+org&rsquo;s <code>org-babel-temporary-directory</code> (open question 7). The hash is
+the first 8 characters of the SHA-1 of the assembled document. The
+package creates a profile directory <code>ob-chromium-profile-&lt;hash&gt;</code> in
+the same place and passes it as <code>--user-data-dir</code> (open question 8).
+Both are deleted after Chromium exits, on success and on failure.
+With <code>:keep-html yes</code> the package copies the document beside the
+output file as <code>&lt;output&gt;.html</code> before deleting the temporary one.
+</p>
+
+<p>
+A snap installed Chromium cannot read <code>/tmp</code> of the host. Such a user
+sets <code>ob-chromium-temporary-directory</code> to a directory under <code>$HOME</code>
+that does not start with a period. The README says so (Edge cases).
+</p>
+</div>
+</div>
+<div id="outline-container-org055a0ae" class="outline-3">
+<h3 id="org055a0ae">Finding the executable</h3>
+<div class="outline-text-3" id="text-org055a0ae">
+<p>
+<code>ob-chromium--executable</code> returns, in order:
+</p>
+
+<ol class="org-ol">
+<li><code>ob-chromium-executable</code> when it is set. When it is set and the
+file is not executable, <code>user-error</code> names the path.</li>
+<li>The first name in <code>ob-chromium-candidates</code> that <code>executable-find</code>
+resolves. The default list is <code>chromium</code>, <code>chromium-browser</code>,
+<code>google-chrome</code>, <code>google-chrome-stable</code>, <code>chrome</code>,
+<code>chrome-headless-shell</code>, <code>brave-browser</code>, <code>microsoft-edge</code>.</li>
+<li>The first entry in <code>ob-chromium-candidates</code> that is an absolute
+path and exists. The default list ends with the macOS application
+binaries of Chrome, Chromium, Brave and Edge under
+<code>/Applications/*.app/Contents/MacOS/</code>.</li>
+<li>Otherwise <code>user-error</code> says that no Chromium was found and names
+the variable.</li>
+</ol>
+
+<p>
+The result is cached for the Emacs session in a variable, and the
+cache is cleared when the user sets <code>ob-chromium-executable</code> through
+Customize (open question 13).
+</p>
+</div>
+</div>
+<div id="outline-container-org4c0784d" class="outline-3">
+<h3 id="org4c0784d">The command line</h3>
+<div class="outline-text-3" id="text-org4c0784d">
+<p>
+The package builds a list of arguments and runs it with
+<code>call-process</code>, not through a shell (open question 2). Paths with
+spaces need no quoting. The list is:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Argument</th>
+<th scope="col" class="org-left">Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>--headless</code></td>
+<td class="org-left">always</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--disable-gpu</code></td>
+<td class="org-left">always</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--hide-scrollbars</code></td>
+<td class="org-left">always</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--user-data-dir=&lt;profile&gt;</code></td>
+<td class="org-left">always (open question 8)</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--window-size=&lt;W&gt;,&lt;H&gt;</code></td>
+<td class="org-left"><code>:width</code>, <code>:height</code>, or the two <code>defcustom</code> defaults</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--force-device-scale-factor=&lt;N&gt;</code></td>
+<td class="org-left"><code>:scale</code>, when given (open question 14)</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--default-background-color=&lt;RRGGBBAA&gt;</code></td>
+<td class="org-left"><code>:background</code>, when given</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--timeout=&lt;ms&gt;</code></td>
+<td class="org-left"><code>:timeout</code>, else <code>ob-chromium-timeout</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--virtual-time-budget=&lt;ms&gt;</code></td>
+<td class="org-left"><code>:delay</code>, when given</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-extra-args</code></td>
+<td class="org-left">each element, verbatim</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>:cmdline</code></td>
+<td class="org-left">split with <code>split-string-and-unquote</code>, verbatim</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>--screenshot=&lt;out&gt;</code> or <code>--print-to-pdf=&lt;out&gt;</code> or <code>--dump-dom</code></td>
+<td class="org-left">the mode (open question 9)</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>file://&lt;document&gt;</code></td>
+<td class="org-left">the temporary document</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+<code>:background</code> accepts <code>transparent</code>, which maps to <code>00000000</code>, a
+6 digit hex colour, which gets <code>FF</code> appended, and an 8 digit hex
+colour, which passes through. A leading <code>#</code> is removed.
+</p>
+
+<p>
+The output path passed to Chromium is absolute. Chromium resolves a
+relative path against its own working directory, and <code>call-process</code>
+runs it in <code>default-directory</code>, but an absolute path removes the
+dependency. The directory of the output file is created when it does
+not exist.
+</p>
+</div>
+</div>
+<div id="outline-container-org5889594" class="outline-3">
+<h3 id="org5889594">Running Chromium and reporting errors</h3>
+<div class="outline-text-3" id="text-org5889594">
+<p>
+<code>ob-chromium--run</code> calls <code>call-process</code> with standard output to one
+temporary buffer and standard error to another, and returns the exit
+code and both strings. Standard error is kept for the error message
+only. Chromium writes warnings to standard error on every run, so the
+package shows nothing on success (open question 11).
+</p>
+
+<p>
+The execution fails when the exit code is not 0, or when the output
+file does not exist or is empty after Chromium exits. In both cases
+the package calls <code>org-babel-eval-error-notify</code> with the exit code and
+the standard error text, which opens <code>*Org-Babel Error Output*</code>, and
+then signals <code>user-error</code> with a one line summary. The temporary
+files are deleted in an <code>unwind-protect</code> clean-up form, so a <code>C-g</code>
+during the run leaves nothing behind.
+</p>
+</div>
+</div>
+<div id="outline-container-org5fd496a" class="outline-3">
+<h3 id="org5fd496a">Viewport and content fit</h3>
+<div class="outline-text-3" id="text-org5fd496a">
+<p>
+<code>:fit</code> is <code>viewport</code> by default (open question 6). The image is
+<code>:width</code> by <code>:height</code> CSS pixels, times <code>:scale</code>. Content below the
+window is not in the image.
+</p>
+
+<p>
+With <code>:fit content</code> the package runs Chromium twice. The first run
+uses the same document plus one script appended before <code>&lt;/body&gt;</code>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-html">&lt;<span style="color: #82aaff;">script</span>&gt;
+addEventListener("load", function () {
+&#9474; var d = document.documentElement;
+&#9474; d.setAttribute("data-ob-chromium-size",
+&#9474;   &#9474;   &#9474;   &#9474;   &#9474;d.scrollWidth + "x" + d.scrollHeight);
+});
+&lt;/<span style="color: #82aaff;">script</span>&gt;
+</pre>
+</div>
+
+<p>
+The first run passes <code>--dump-dom</code> instead of <code>--screenshot</code>, with the
+same window size. Chromium prints the serialized DOM after the load
+event, so the attribute is in the output. The package reads the
+height from it. The second run passes <code>--screenshot</code> with
+<code>--window-size=&lt;W&gt;,&lt;measured height&gt;</code>. The width stays <code>:width</code>,
+because <code>scrollWidth</code> of the root element is never less than the
+window width, so a content width cannot be measured this way. When
+the attribute is missing from the output, the package falls back to
+<code>:height</code> and continues. Content fit costs one more Chromium start,
+about 1 s (Measurement).
+</p>
+</div>
+</div>
+<div id="outline-container-org6c0277d" class="outline-3">
+<h3 id="org6c0277d">Output file and format</h3>
+<div class="outline-text-3" id="text-org6c0277d">
+<p>
+The output file is <code>:file</code> when given, prefixed by <code>:output-dir</code>
+by org. A named block without <code>:file</code> gets <code>&lt;name&gt;.png</code> from
+<code>:file-ext</code>. An unnamed block without <code>:file</code> gets <code>user-error</code> with
+org&rsquo;s own message, &ldquo;did you forget to name a block?&rdquo; (open question
+5).
+</p>
+
+<p>
+The extension picks the Chromium action (open question 9):
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Extension</th>
+<th scope="col" class="org-left">Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>.png</code></td>
+<td class="org-left"><code>--screenshot=&lt;out&gt;</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>.pdf</code></td>
+<td class="org-left"><code>--print-to-pdf=&lt;out&gt;</code> <code>--no-pdf-header-footer</code></td>
+</tr>
+
+<tr>
+<td class="org-left">anything else</td>
+<td class="org-left"><code>user-error</code> before Chromium starts</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Chromium writes PNG from <code>--screenshot</code> whatever the extension says,
+so the package refuses other image extensions rather than write a PNG
+under a wrong name. For PDF, <code>:fit</code> is ignored and the page size
+comes from the document&rsquo;s <code>@page</code> rule or Chromium&rsquo;s default.
+</p>
+</div>
+</div>
+<div id="outline-container-org87c65cd" class="outline-3">
+<h3 id="org87c65cd">Configuration</h3>
+<div class="outline-text-3" id="text-org87c65cd">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Variable</th>
+<th scope="col" class="org-left">Default</th>
+<th scope="col" class="org-left">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>ob-chromium-executable</code></td>
+<td class="org-left"><code>nil</code></td>
+<td class="org-left">Path to the browser. <code>nil</code> searches <code>ob-chromium-candidates</code>.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-candidates</code></td>
+<td class="org-left">the list under Finding the executable</td>
+<td class="org-left">Names and absolute paths tried in order</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-extra-args</code></td>
+<td class="org-left"><code>nil</code></td>
+<td class="org-left">Flags added to every run, such as <code>--no-sandbox</code> in a container</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-default-width</code></td>
+<td class="org-left">1280</td>
+<td class="org-left">Window width when <code>:width</code> is absent</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-default-height</code></td>
+<td class="org-left">800</td>
+<td class="org-left">Window height when <code>:height</code> is absent</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-timeout</code></td>
+<td class="org-left">30000</td>
+<td class="org-left"><code>--timeout</code> in ms when <code>:timeout</code> is absent</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-temporary-directory</code></td>
+<td class="org-left"><code>nil</code></td>
+<td class="org-left">Where the document and profile go. <code>nil</code> uses org&rsquo;s directory</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-template</code></td>
+<td class="org-left">the string under Assembling the document</td>
+<td class="org-left">Wrapper for a fragment</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+All variables are in the <code>org-babel</code> customization group, as in
+<code>ob-mermaid</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-org0cdffe3" class="outline-3">
+<h3 id="org0cdffe3">Package layout</h3>
+<div class="outline-text-3" id="text-org0cdffe3">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">File</th>
+<th scope="col" class="org-left">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>ob-chromium.el</code></td>
+<td class="org-left">The package. Header with <code>Package-Requires: ((emacs "27.1") (org "9.4"))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ob-chromium-test.el</code></td>
+<td class="org-left">ERT tests, unit and integration</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>test-example.org</code></td>
+<td class="org-left">One block per feature, executed by the batch test</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>test-init.el</code></td>
+<td class="org-left">Minimal init that loads the package and the test file</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>dev-test.sh</code></td>
+<td class="org-left"><code>check</code>, <code>clean</code>, <code>syntax</code>, <code>batch</code>, <code>interactive</code>, <code>all</code>, as in <code>ob-mermaid</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>.github/workflows/test.yml</code></td>
+<td class="org-left">CI</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>README.org</code></td>
+<td class="org-left">Setup, header arguments, customization, the snap note, inline images</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>LICENSE</code></td>
+<td class="org-left">GPL-3.0, as org requires for a babel language</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>designs/ob-chromium.org</code></td>
+<td class="org-left">This document</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+The MELPA recipe is
+<code>(ob-chromium :fetcher github :repo "jamesgornet/ob-chromium")</code> and is
+submitted in step 10 of the Work plan.
+</p>
+</div>
+</div>
+<div id="outline-container-org66ca6ce" class="outline-3">
+<h3 id="org66ca6ce">What is not covered</h3>
+<div class="outline-text-3" id="text-org66ca6ce">
+<ul class="org-ul">
+<li>The package does not render the image inline by itself. Org does
+that when <code>org-startup-with-inline-images</code> is set or the user runs
+<code>org-display-inline-images</code>. The README gives the usual hook,
+<code>(add-hook 'org-babel-after-execute-hook #'org-redisplay-inline-images)</code>.</li>
+<li>The package does not install Chromium.</li>
+<li>The package does not confirm evaluation. Org asks through
+<code>org-confirm-babel-evaluate</code> as for every language, and the README
+shows how to allow <code>chromium</code> blocks without a prompt.</li>
+</ul>
+</div>
+</div>
+</div>
+<div id="outline-container-orgda01596" class="outline-2">
+<h2 id="orgda01596">Migration</h2>
+<div class="outline-text-2" id="text-orgda01596">
+<p>
+Nothing is implemented, so nothing moves. A user of <code>ob-html-chrome</code>
+changes these:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">In <code>ob-html-chrome</code></th>
+<th scope="col" class="org-left">In <code>ob-chromium</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>#+begin_src html-chrome</code></td>
+<td class="org-left"><code>#+begin_src chromium</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>org-babel-html-chrome-chrome-executable</code></td>
+<td class="org-left"><code>ob-chromium-executable</code>, optional</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>:file name</code> without extension</td>
+<td class="org-left"><code>:file name.png</code>, or <code>#+NAME: name</code> and no <code>:file</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>:flags "--window-size=320,240"</code></td>
+<td class="org-left"><code>:width 320 :height 240</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>:flags "--force-device-scale-factor=2"</code></td>
+<td class="org-left"><code>:scale 2</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>:flags</code> for anything else</td>
+<td class="org-left"><code>:cmdline</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>:url</code></td>
+<td class="org-left">not supported</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>:exports both</code> by default</td>
+<td class="org-left"><code>:exports results</code> by default</td>
+</tr>
+
+<tr>
+<td class="org-left">temporary file beside the org file</td>
+<td class="org-left">temporary file in org&rsquo;s directory, <code>&lt;base href&gt;</code> set</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+A user of <code>ob-mermaid</code> finds <code>:file</code>, <code>:width</code>, <code>:height</code>, <code>:scale</code>,
+<code>:cmdline</code> and <code>:results file</code> with the same meaning.
+<code>:background-color</code> is <code>:background</code> here, and <code>:css-file</code> is <code>:css</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-org06475f3" class="outline-2">
+<h2 id="org06475f3">Edge cases</h2>
+<div class="outline-text-2" id="text-org06475f3">
+<ul class="org-ul">
+<li>A browser from the same binary is already running. Chromium gets
+its own <code>--user-data-dir</code>, so it does not hand the URL to the
+running instance and exit (open question 8).</li>
+<li>Chromium is a snap. It cannot read <code>/tmp</code>, so the run fails with
+a file not found error from Chromium. The error output names the
+document path. The user sets <code>ob-chromium-temporary-directory</code> to a
+directory under <code>$HOME</code> that does not start with a period. The
+README documents this (open question 7).</li>
+<li>The body is a full document. It is not wrapped. <code>&lt;base href&gt;</code> and
+the <code>&lt;style&gt;</code> element go before <code>&lt;/head&gt;</code>, or after <code>&lt;html&gt;</code> when
+there is no <code>&lt;/head&gt;</code> (open question 4).</li>
+<li>The body is empty or whitespace. <code>user-error</code> before Chromium
+starts.</li>
+<li><code>:css</code> names something that is neither a block nor a file.
+<code>user-error</code> names the item (open question 3).</li>
+<li><code>:css</code> names a block in another file. Not supported. Only the
+current buffer is searched. The user uses a file path instead.</li>
+<li>The body references <code>figure.png</code> beside the org file. <code>&lt;base href&gt;</code>
+makes Chromium read it from there. The document itself can be in
+<code>/tmp</code> (open question 7).</li>
+<li>The body loads a web font or a script from the network. Chromium
+has network access and the load event waits for them.
+<code>--timeout</code> bounds the wait at <code>ob-chromium-timeout</code>, 30 s by
+default. After it, Chromium captures what it has.</li>
+<li>The body draws with JavaScript after a timer. <code>:delay &lt;ms&gt;</code> passes
+<code>--virtual-time-budget</code>, which runs timers ahead before capture.</li>
+<li>Content is taller than <code>:height</code> in viewport mode. The image stops
+at <code>:height</code>. No scrollbar is drawn (open question 6).</li>
+<li>Content is wider than <code>:width</code> in content mode. The width stays
+<code>:width</code> and the overflow is not in the image (open question 6).</li>
+<li>The measurement pass gives no size attribute, because a script in
+the body threw before the load event or the DOM dump was cut. The
+package uses <code>:height</code> and continues. Nothing is reported.</li>
+<li>Chromium exits 0 but writes no file. <code>user-error</code> with Chromium&rsquo;s
+standard error in <code>*Org-Babel Error Output*</code> (open question 11).</li>
+<li>Chromium exits non-zero. Same (open question 11).</li>
+<li>The user presses <code>C-g</code> during the run. <code>call-process</code> is
+interrupted. The clean-up form deletes the document and the
+profile.</li>
+<li><code>:file</code> ends in <code>.jpg</code> or <code>.svg</code>. <code>user-error</code> before Chromium
+starts (open question 9).</li>
+<li><code>:file</code> is in a directory that does not exist. The package creates
+it.</li>
+<li>A path contains a space. <code>call-process</code> takes a list, so nothing is
+quoted or split (open question 2).</li>
+<li>Emacs runs as root in a container. Chromium refuses to start
+without <code>--no-sandbox</code>. The user adds it to
+<code>ob-chromium-extra-args</code>. The README says so.</li>
+<li><code>:cache yes</code> and a <code>:css</code> block changes. Org hashes the body and
+the header arguments, not the body of the named CSS block, so the
+cached result is stale. The user re-runs with <code>C-u C-c C-c</code>. The
+README says so (open question 3).</li>
+<li><code>:background transparent</code> and the body sets a body background.
+The image is opaque where the body paints. The template sets no
+background, so a fragment with no background rule is transparent.</li>
+<li>Export with <code>ox-html</code> or <code>ox-latex</code>. Org executes the block during
+export with <code>default-directory</code> set to the org file&rsquo;s directory,
+and the link to the PNG is exported as an image.</li>
+<li>Windows. The file URL is built with <code>browse-url-file-url</code> when it
+exists (Emacs 29) and with <code>file:///</code> and <code>url-hexify-string</code>
+otherwise. Not tested in the first version. CI runs Linux and
+macOS.</li>
+<li>The org buffer visits a remote file over Tramp. <code>user-error</code>.</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org5f9fbff" class="outline-2">
+<h2 id="org5f9fbff">Testing</h2>
+<div class="outline-text-2" id="text-org5f9fbff">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Level</th>
+<th scope="col" class="org-left">Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Static</td>
+<td class="org-left"><code>byte-compile-file</code> with no warnings, <code>checkdoc</code>, <code>package-lint</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Unit, ERT</td>
+<td class="org-left"><code>ob-chromium--full-document-p</code> on fragments, documents, letter case, leading whitespace</td>
+</tr>
+
+<tr>
+<td class="org-left">Unit, ERT</td>
+<td class="org-left"><code>ob-chromium--assemble</code>: fragment wrapped, full document gets <code>&lt;base&gt;</code> and <code>&lt;style&gt;</code> before <code>&lt;/head&gt;</code>, without <code>&lt;/head&gt;</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Unit, ERT</td>
+<td class="org-left"><code>ob-chromium--css</code>: named block, file, both in order, missing item signals <code>user-error</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Unit, ERT</td>
+<td class="org-left"><code>ob-chromium--command</code>: every header argument appears as the right flag, <code>:background</code> forms, defaults</td>
+</tr>
+
+<tr>
+<td class="org-left">Unit, ERT</td>
+<td class="org-left"><code>ob-chromium--output-file</code>: <code>:file</code>, <code>:output-dir</code>, <code>#+NAME</code> with <code>:file-ext</code>, <code>.pdf</code>, <code>.jpg</code> refused</td>
+</tr>
+
+<tr>
+<td class="org-left">Unit, ERT</td>
+<td class="org-left"><code>ob-chromium--measure</code> parses <code>data-ob-chromium-size</code> from a canned DOM dump, falls back when absent</td>
+</tr>
+
+<tr>
+<td class="org-left">Integration</td>
+<td class="org-left">Skipped with <code>ert-skip</code> when no executable is found. Otherwise: a block renders to a PNG whose IHDR says 1280x800</td>
+</tr>
+
+<tr>
+<td class="org-left">Integration</td>
+<td class="org-left"><code>:scale 2</code> gives 2560x1600. <code>:fit content</code> on a 2000 px tall body gives a height of 2000 or more</td>
+</tr>
+
+<tr>
+<td class="org-left">Integration</td>
+<td class="org-left"><code>:css</code> from a named block changes a pixel colour read from the PNG</td>
+</tr>
+
+<tr>
+<td class="org-left">Integration</td>
+<td class="org-left"><code>.pdf</code> output starts with <code>%PDF</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Integration</td>
+<td class="org-left">A failing run, <code>:cmdline --bad-flag</code> or an unreadable path, signals <code>user-error</code> and leaves no temporary files</td>
+</tr>
+
+<tr>
+<td class="org-left">Batch</td>
+<td class="org-left"><code>dev-test.sh batch</code> executes every block of <code>test-example.org</code> in <code>emacs --batch</code> and checks each output file</td>
+</tr>
+
+<tr>
+<td class="org-left">CI</td>
+<td class="org-left">GitHub Actions: Emacs 27.2, 28.2, 29.4 and 30.1 on Ubuntu, 30.1 on macOS, Chrome from <code>browser-actions/setup-chrome</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Manual</td>
+<td class="org-left"><code>dev-test.sh interactive</code>: <code>C-c C-c</code> on each block, inline image shows, <code>C-c C-v v</code> shows the document</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+PNG dimensions are read from the IHDR chunk, bytes 16 to 23 of the
+file, so the integration tests do not need an Emacs built with image
+support.
+</p>
+</div>
+</div>
+<div id="outline-container-org3c041bb" class="outline-2">
+<h2 id="org3c041bb">Measurement</h2>
+<div class="outline-text-2" id="text-org3c041bb">
+<p>
+What to measure: the wall time of one block in viewport mode and in
+content mode, and the size of the PNG at <code>:scale 1</code> and <code>:scale 2</code>.
+The time decides the default of <code>:fit</code> (open question 6) and whether
+a persistent browser is worth a later version.
+</p>
+</div>
+<div id="outline-container-org9d4b5cf" class="outline-3">
+<h3 id="org9d4b5cf">Results</h3>
+<div class="outline-text-3" id="text-org9d4b5cf">
+<p>
+Not measured yet. Nothing is implemented. Step 11 of the Work plan
+records 10 runs of each case with <code>benchmark-run</code> on this machine and
+on a Mac, with the Chromium version and the commit.
+</p>
+</div>
+</div>
+<div id="outline-container-orgb14f561" class="outline-3">
+<h3 id="orgb14f561">Benchmarks</h3>
+<div class="outline-text-3" id="text-orgb14f561">
+<p>
+None yet.
+</p>
+</div>
+</div>
+<div id="outline-container-org3bcae0d" class="outline-3">
+<h3 id="org3bcae0d">Expected values</h3>
+<div class="outline-text-3" id="text-org3bcae0d">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Case</th>
+<th scope="col" class="org-left">Expected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Viewport mode, 1280x800, local content</td>
+<td class="org-left">0.5 s to 1.5 s, almost all Chromium start</td>
+</tr>
+
+<tr>
+<td class="org-left">Content mode</td>
+<td class="org-left">twice the viewport time</td>
+</tr>
+
+<tr>
+<td class="org-left">PNG, 1280x800, text on white, scale 1</td>
+<td class="org-left">50 KB to 200 KB</td>
+</tr>
+
+<tr>
+<td class="org-left">PNG, scale 2</td>
+<td class="org-left">about 3 times the scale 1 size</td>
+</tr>
+
+<tr>
+<td class="org-left">Profile directory per run</td>
+<td class="org-left">1 MB to 10 MB, deleted after the run</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="outline-container-orge5cb7bb" class="outline-2">
+<h2 id="orge5cb7bb">Open questions</h2>
+<div class="outline-text-2" id="text-orge5cb7bb">
+<ol class="org-ol">
+<li>What is the language name?
+<dl class="org-dl">
+<dt>Option A</dt><dd><code>chromium</code>. <code>#+begin_src chromium</code>. Editing mode set
+through <code>org-src-lang-modes</code>. Matches the package name, as
+<code>mermaid</code> matches <code>ob-mermaid</code>.</dd>
+<dt>Option B</dt><dd><code>html</code>. Any existing <code>html</code> block becomes executable
+and <code>C-c C-c</code> on it needs <code>:file</code>. Breaks documents that use
+<code>html</code> blocks for display only.</dd>
+<dt>Option C</dt><dd><code>html-chromium</code> or <code>html-chrome</code>. Says what the body
+is, as <code>ob-html-chrome</code> did. Longer to type.</dd>
+<dt>Recommendation</dt><dd>A. The body is HTML, but the language name is
+the tool, as for every other babel language that renders.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>How does Emacs drive Chromium?
+<dl class="org-dl">
+<dt>Option A</dt><dd>One <code>call-process</code> per block with <code>--headless</code> and
+<code>--screenshot</code>. No dependency. About 1 s per block for the
+browser start. Full page capture needs a second run.</dd>
+<dt>Option B</dt><dd>The Chrome DevTools Protocol over
+<code>--remote-debugging-pipe</code> or a port. One persistent browser,
+<code>Page.captureScreenshot</code> with <code>captureBeyondViewport</code>, element
+clipping. Needs a WebSocket client and JSON handling in Elisp,
+and a process to manage.</dd>
+<dt>Option C</dt><dd>A Node script with Puppeteer, as <code>ob-mermaid</code> depends
+on <code>mmdc</code>. Full page and element capture come for free. Needs
+Node and a package install.</dd>
+<dt>Option D</dt><dd><code>wkhtmltoimage</code>. Old WebKit, unmaintained.</dd>
+<dt>Recommendation</dt><dd>A. It meets the goals with zero dependencies.
+B is the path for a later version if Measurement shows the start
+time matters.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>Where does the CSS come from?
+<dl class="org-dl">
+<dt>Option A</dt><dd><code>:css</code> takes a list of named blocks and file paths,
+inlined into one <code>&lt;style&gt;</code> element.</dd>
+<dt>Option B</dt><dd>Noweb only. <code>&lt;&lt;theme&gt;&gt;</code> in the body with <code>:noweb yes</code>.
+Nothing to build, but the user writes the <code>&lt;style&gt;</code> element and
+the reference by hand in every block.</dd>
+<dt>Option C</dt><dd><code>:css-file</code> for files only, as <code>ob-mermaid</code>. A CSS
+block in the buffer must be tangled first.</dd>
+<dt>Recommendation</dt><dd>A. B keeps working alongside it.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>How does the package know whether to wrap the body?
+<dl class="org-dl">
+<dt>Option A</dt><dd>Detect: a body that starts with <code>&lt;!doctype</code> or
+<code>&lt;html</code> is a full document.</dd>
+<dt>Option B</dt><dd>A header argument, <code>:document yes</code>, with no
+detection. Explicit, one more thing to type.</dd>
+<dt>Option C</dt><dd>Both, with the header argument as the override.</dd>
+<dt>Recommendation</dt><dd>A. The two prefixes cover every full document
+in practice, and <code>C-c C-v v</code> shows what was decided.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>Is <code>:file</code> required?
+<dl class="org-dl">
+<dt>Option A</dt><dd>Required, as in <code>ob-mermaid</code>.</dd>
+<dt>Option B</dt><dd><code>:file</code>, else <code>#+NAME</code> plus <code>.png</code> through org&rsquo;s
+<code>:file-ext</code> mechanism, else org&rsquo;s own error.</dd>
+<dt>Option C</dt><dd>As B, and an unnamed block without <code>:file</code> gets
+<code>ob-chromium-&lt;hash&gt;.png</code>.</dd>
+<dt>Recommendation</dt><dd>B. It uses what org already does and the
+error message is org&rsquo;s. C leaves hash named files behind when
+the body changes.</dd>
+<dt>(no term)</dt><dd>The body is written for B.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>What is the default of <code>:fit</code>?
+<dl class="org-dl">
+<dt>Option A</dt><dd><code>viewport</code>. One Chromium run. The image is
+<code>:width</code> by <code>:height</code>.</dd>
+<dt>Option B</dt><dd><code>content</code>. Two runs. The height follows the content.
+The width stays <code>:width</code>.</dd>
+<dt>Recommendation</dt><dd>A, until Measurement gives the cost of the
+second run. A snippet that is a card or a table is often
+shorter than 800 px, and <code>:fit content</code> is one header argument
+away.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>Where is the temporary document written?
+<dl class="org-dl">
+<dt>Option A</dt><dd><code>org-babel-temporary-directory</code>, with <code>&lt;base href&gt;</code>
+pointing at the org file&rsquo;s directory. Nothing is written beside
+the user&rsquo;s file. Fails for a snap Chromium unless
+<code>ob-chromium-temporary-directory</code> is set.</dd>
+<dt>Option B</dt><dd>Beside the org file, as <code>ob-html-chrome</code> does.
+Relative paths work with no <code>&lt;base&gt;</code>. A file appears in the
+user&rsquo;s directory for the duration of the run, and stays after
+a crash. Syncing folders such as Dropbox pick it up.</dd>
+<dt>Recommendation</dt><dd>A, with the <code>defcustom</code> for snap users.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>Does every run get its own <code>--user-data-dir</code>?
+<dl class="org-dl">
+<dt>Option A</dt><dd>Yes. A temporary profile, deleted after the run.
+A running browser of the same binary does not take over the
+URL. Costs a few MB of writes per run.</dd>
+<dt>Option B</dt><dd>No. Fewer writes. A run while the browser is open
+opens the file in that browser and the screenshot never appears.</dd>
+<dt>Recommendation</dt><dd>A.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>Is PDF output in scope?
+<dl class="org-dl">
+<dt>Option A</dt><dd>Yes. <code>:file name.pdf</code> passes <code>--print-to-pdf</code>. About
+10 lines.</dd>
+<dt>Option B</dt><dd>No. PNG only. Other extensions are refused.</dd>
+<dt>Recommendation</dt><dd>A. The flag exists and the extension already
+has to be checked.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>Is element capture, <code>:selector .card</code>, in the first version?
+<dl class="org-dl">
+<dt>Option A</dt><dd>Yes, through a script in the measurement pass that
+replaces the body&rsquo;s children with the selected element and
+measures it. Works only with <code>:fit content</code>.</dd>
+<dt>Option B</dt><dd>Not in the first version. Listed as a later
+version.</dd>
+<dt>Recommendation</dt><dd>B. It depends on <code>:fit content</code> and on
+Measurement.</dd>
+<dt>(no term)</dt><dd>The body is written for B.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>What does the user see on failure and on success?
+<dl class="org-dl">
+<dt>Option A</dt><dd>On failure, standard error in
+<code>*Org-Babel Error Output*</code> and a one line <code>user-error</code>. On
+success, nothing. Chromium&rsquo;s warnings are discarded.</dd>
+<dt>Option B</dt><dd>Standard error always shown, as <code>org-babel-eval</code>
+does. Chromium prints warnings on every run, so a buffer pops
+up after every block.</dd>
+<dt>Recommendation</dt><dd>A.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>One file or several?
+<dl class="org-dl">
+<dt>Option A</dt><dd>One file, <code>ob-chromium.el</code>, with three commented
+sections. MELPA single file recipe. As <code>ob-mermaid</code>.</dd>
+<dt>Option B</dt><dd><code>ob-chromium.el</code> plus <code>ob-chromium-driver.el</code>.
+Cleaner tests, two files to load.</dd>
+<dt>Recommendation</dt><dd>A. The package is under 400 lines.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>What are the minimum versions?
+<dl class="org-dl">
+<dt>Option A</dt><dd>Emacs 27.1 and org 9.4. <code>mhtml-mode</code>,
+<code>format-spec</code>, lexical binding. CI runs 27.2 as the oldest.</dd>
+<dt>Option B</dt><dd>Emacs 29.1 and org 9.6. <code>browse-url-file-url</code> and
+<code>org-babel-temp-stable-file</code> without fallbacks.</dd>
+<dt>Recommendation</dt><dd>A. The fallbacks are two short functions.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+<li>What is the default device scale factor?
+<dl class="org-dl">
+<dt>Option A</dt><dd>1. The PNG has as many pixels as CSS pixels. Small
+files. Soft on a HiDPI screen when org shows the image at its
+pixel size.</dd>
+<dt>Option B</dt><dd>2. Sharp on HiDPI, about 3 times the file size,
+and org shows it twice as large unless <code>#+ATTR_ORG: :width</code> is
+set.</dd>
+<dt>Recommendation</dt><dd>A, because <code>ob-mermaid</code> and <code>ob-html-chrome</code>
+do the same and the user sets <code>:scale 2</code> per block or per
+file.</dd>
+<dt>(no term)</dt><dd>The body is written for A.</dd>
+<dt>(no term)</dt><dd>TODO Decide.</dd>
+</dl></li>
+</ol>
+</div>
+</div>
+<div id="outline-container-orga8246eb" class="outline-2">
+<h2 id="orga8246eb">Work plan</h2>
+<div class="outline-text-2" id="text-orga8246eb">
+<p>
+The steps are in order. Each step is one commit on <code>main</code> in
+<code>ob-chromium</code>, until the first tag.
+</p>
+
+<ol class="org-ol">
+<li>Repository skeleton: <code>ob-chromium.el</code> with the header,
+<code>Package-Requires</code>, the <code>defcustom</code> variables, the default header
+arguments and <code>org-babel-header-args:chromium</code>, the
+<code>org-src-lang-modes</code> entry, and <code>org-babel-prep-session:chromium</code>.
+<code>LICENSE</code>, <code>.gitignore</code>, an empty <code>README.org</code>.</li>
+<li><code>ob-chromium--executable</code> with the candidate search and the
+session cache. Unit tests with a fake <code>exec-path</code>.</li>
+<li>Document assembly: <code>ob-chromium--full-document-p</code>,
+<code>ob-chromium--css</code>, <code>ob-chromium--named-block-body</code>,
+<code>ob-chromium--assemble</code>, <code>org-babel-expand-body:chromium</code>. Unit
+tests.</li>
+<li><code>ob-chromium--command</code>, <code>ob-chromium--output-file</code>,
+<code>ob-chromium--run</code> and <code>org-babel-execute:chromium</code> in viewport
+mode, with the temporary document and profile, the clean-up form
+and error reporting. Unit tests for the command. Integration
+tests, skipped without Chromium.</li>
+<li><code>:fit content</code>: the probe script, <code>ob-chromium--measure</code>, the
+second run and the fallback. Unit test on a canned DOM dump.
+Integration test.</li>
+<li>PDF output through the extension. Integration test.</li>
+<li><code>test-example.org</code> with one block per header argument,
+<code>test-init.el</code>, <code>dev-test.sh</code> ported from <code>ob-mermaid</code> with the
+file list of the new test document.</li>
+<li>CI: <code>.github/workflows/test.yml</code> with the Emacs matrix,
+<code>browser-actions/setup-chrome</code>, static checks, ERT and the batch
+test.</li>
+<li><code>README.org</code>: setup, header arguments, customization, the
+<code>ob-html-chrome</code> migration table, the snap note, <code>--no-sandbox</code>,
+inline images, <code>org-confirm-babel-evaluate</code>.</li>
+<li>Tag <code>0.1.0</code>. Submit the MELPA recipe.</li>
+<li>Measurement: 10 runs per case of the Expected values table on
+this machine and a Mac. Record under Results. Revisit open
+question 6 with the figures.</li>
+</ol>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="date">Date: 2026-10-16</p>
+<p class="author">Author: James Gornet</p>
+<p class="date">Created: 2026-10-16 Fri 10:38</p>
+</div>
+</body>
+</html>
