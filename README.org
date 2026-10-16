@@ -1,0 +1,4 @@
+* ob-chromium
+
+Render HTML and CSS from org-babel source blocks to a screenshot with
+headless Chromium. Work in progress. See =designs/ob-chromium.org=.
