@@ -189,14 +189,22 @@ with newlines in the order given.  Return nil without :css."
   (ob-chromium--file-url
    (file-name-as-directory (expand-file-name default-directory))))
 
-(defun ob-chromium--assemble (body css base-url)
+(defun ob-chromium--assemble (body css base-url &optional document)
   "Return the HTML document for BODY with CSS and BASE-URL.
 A fragment is wrapped in `ob-chromium-template'.  A full document
 gets a <base> and a <style> element before </head>, or after the
-<html> tag when there is no </head>."
+<html> tag when there is no </head>.  DOCUMENT is the :document
+header argument: \"yes\" treats BODY as a full document, \"no\"
+as a fragment, and nil lets `ob-chromium--full-document-p' decide."
   (let ((css (or css ""))
-        (case-fold-search t))
-    (if (not (ob-chromium--full-document-p body))
+        (case-fold-search t)
+        (full (pcase document
+                ("yes" t)
+                ("no" nil)
+                ((pred null) (ob-chromium--full-document-p body))
+                (_ (user-error "ob-chromium: :document must be yes or no, not %S"
+                               document)))))
+    (if (not full)
         (format-spec ob-chromium-template
                      `((?u . ,base-url) (?c . ,css) (?b . ,body)))
       (let ((head (format "<base href=\"%s\">\n<style>\n%s\n</style>" base-url css)))
@@ -209,7 +217,8 @@ gets a <base> and a <style> element before </head>, or after the
 (defun org-babel-expand-body:chromium (body params)
   "Return the document rendered for BODY with PARAMS.
 This is what `org-babel-expand-src-block' shows."
-  (ob-chromium--assemble body (ob-chromium--css params) (ob-chromium--base-url)))
+  (ob-chromium--assemble body (ob-chromium--css params) (ob-chromium--base-url)
+                         (ob-chromium--param :document params)))
 
 ;;;; Chromium driver
 

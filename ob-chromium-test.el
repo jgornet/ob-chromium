@@ -131,6 +131,27 @@
   (let ((doc (ob-chromium--assemble "<html><head></head></html>" "p::before { content: \"\\201C\" }" "file:///d/")))
     (should (string-match-p (regexp-quote "content: \"\\201C\"") doc))))
 
+(ert-deftest ob-chromium-test-assemble-document-override ()
+  ":document yes and no override the detection."
+  (let ((wrapped (ob-chromium--assemble "<html><body>b</body></html>" "" "file:///d/" "no"))
+        (kept (ob-chromium--assemble "<div>x</div>" "" "file:///d/" "yes")))
+    (should (string-prefix-p "<!DOCTYPE html>" wrapped))
+    (should (string-match-p "<body>\n<html><body>b</body></html>\n</body>" wrapped))
+    (should (string-prefix-p "<base href=\"file:///d/\">" kept))
+    (should-not (string-match-p "<!DOCTYPE" kept))))
+
+(ert-deftest ob-chromium-test-assemble-document-bad ()
+  "A :document value other than yes or no is a `user-error'."
+  (should-error (ob-chromium--assemble "<p>x</p>" "" "file:///d/" "maybe") :type 'user-error))
+
+(ert-deftest ob-chromium-test-expand-body-document ()
+  "`org-babel-expand-body:chromium' passes :document through."
+  (ob-chromium-test--with-org ""
+    (should (string-prefix-p "<base href="
+                             (org-babel-expand-body:chromium "<p>x</p>" '((:document . "yes")))))
+    (should (string-prefix-p "<!DOCTYPE html>"
+                             (org-babel-expand-body:chromium "<html></html>" '((:document . "no")))))))
+
 (ert-deftest ob-chromium-test-css-named-block ()
   ":css resolves named blocks in the buffer, in order."
   (ob-chromium-test--with-org
