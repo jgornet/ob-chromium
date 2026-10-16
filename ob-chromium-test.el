@@ -218,6 +218,7 @@
     (should (member "--headless" cmd))
     (should (member "--disable-gpu" cmd))
     (should (member "--hide-scrollbars" cmd))
+    (should (member "--disable-infobars" cmd))
     (should (member "--user-data-dir=/t/p" cmd))
     (should (member "--window-size=1280,800" cmd))
     (should (member "--timeout=30000" cmd))
@@ -331,6 +332,17 @@ Skipped when no browser is found."
     (let ((png (expand-file-name "out.png" dir)))
       (should (equal (ob-chromium-test--png-size png) '(200 . 100)))
       (should (= (ob-chromium-test--png-colour-type png) 6)))))
+
+(ert-deftest ob-chromium-test-integration-small-window ()
+  "A 300x100 window is painted in full.
+Without --disable-infobars the new headless mode paints only the
+top 13 px of such a window and the PNG is about 370 bytes.  A
+painted one with text is well over 1000 bytes."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png :width 300 :height 100\n<div style=\"margin:24px;padding:16px;background:#2d7a2d;color:#fff;font-size:24px\">painted</div>\n#+end_src\n"
+    (org-babel-execute-src-block)
+    (let ((png (expand-file-name "out.png" dir)))
+      (should (equal (ob-chromium-test--png-size png) '(300 . 100)))
+      (should (> (file-attribute-size (file-attributes png)) 1000)))))
 
 (ert-deftest ob-chromium-test-integration-named-block-and-css ()
   "A named block needs no :file, and :css from a block is in the kept document."

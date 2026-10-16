@@ -316,7 +316,11 @@ header arguments."
         (delay (ob-chromium--param :delay params))
         (cmdline (ob-chromium--param :cmdline params)))
     (append
-     (list exe "--headless" "--disable-gpu" "--hide-scrollbars"
+     ;; --disable-infobars: without it the new headless mode reserves
+     ;; room for an infobar inside the window, paints the page only
+     ;; in the rest, and captures the whole window, so a window under
+     ;; about 145 px tall is mostly blank.
+     (list exe "--headless" "--disable-gpu" "--hide-scrollbars" "--disable-infobars"
            (concat "--user-data-dir=" profile)
            (format "--window-size=%s,%s" width height))
      (and scale (list (concat "--force-device-scale-factor=" scale)))
