@@ -1,0 +1,117 @@
+#+TITLE: ob-chromium test examples
+#+PROPERTY: header-args:chromium :output-dir test-output
+
+Every block below is executed by =./dev-test.sh batch=. In an
+interactive session, =C-c C-c= on a block renders it and the image
+shows inline.
+
+* Shared CSS
+
+#+NAME: theme
+#+begin_src css
+body { font-family: sans-serif; margin: 24px; background: #fffbe6; }
+.card { display: inline-block; padding: 16px 24px; border-radius: 8px;
+        background: #2d7a2d; color: white; font-size: 24px; }
+#+end_src
+
+#+NAME: dark
+#+begin_src css
+body { background: #222; color: #eee; }
+#+end_src
+
+* A fragment with :file
+
+#+begin_src chromium :file test-fragment.png :width 400 :height 200
+<p>Hello from <strong>ob-chromium</strong>.</p>
+#+end_src
+
+* A named block without :file
+
+The output is =test-named.png=, from the name and =:file-ext png=.
+
+#+NAME: test-named
+#+begin_src chromium :width 400 :height 120
+<p>Named block, no :file header argument.</p>
+#+end_src
+
+* CSS from named blocks, in order
+
+#+begin_src chromium :file test-css-blocks.png :css theme dark :width 400 :height 160
+<div class="card">theme, then dark</div>
+#+end_src
+
+* CSS from a file and a block
+
+#+begin_src chromium :file test-css-file.png :css test-theme.css theme :width 400 :height 200
+<h1>From a file</h1>
+<div class="card">and a block</div>
+#+end_src
+
+* A full document
+
+Not wrapped. The base and style elements go before =</head>=.
+
+#+begin_src chromium :file test-document.png :css theme :width 400 :height 160
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Full document</title></head>
+<body><div class="card">full document</div></body>
+</html>
+#+end_src
+
+* :document no wraps a document anyway
+
+#+begin_src chromium :file test-document-no.png :document no :width 400 :height 120
+<html><body><p>wrapped on request</p></body></html>
+#+end_src
+
+* :fit content follows the content height
+
+#+begin_src chromium :file test-fit-content.png :css theme :fit content :width 400 :height 100
+<div class="card">one</div>
+<div class="card">two</div>
+<div class="card">three</div>
+<div class="card">four</div>
+<div class="card">five</div>
+<div class="card">six</div>
+#+end_src
+
+* :selector captures one element
+
+#+begin_src chromium :file test-selector.png :css theme :selector .card
+<p>This paragraph is not in the image.</p>
+<div class="card">only the card</div>
+<p>Nor is this one.</p>
+#+end_src
+
+* :scale 2 for a sharp image
+
+#+begin_src chromium :file test-scale.png :css theme :width 300 :height 100 :scale 2
+<div class="card">scale 2</div>
+#+end_src
+
+* :background transparent
+
+#+begin_src chromium :file test-transparent.png :background transparent :width 300 :height 100
+<div style="display:inline-block;padding:12px;background:#c00;color:#fff">on nothing</div>
+#+end_src
+
+* :delay runs timers before the capture
+
+#+begin_src chromium :file test-delay.png :width 400 :height 120 :delay 1000
+<p id="out">waiting</p>
+<script>setTimeout(function () { document.getElementById("out").textContent = "timer ran"; }, 500);</script>
+#+end_src
+
+* :keep-html keeps the assembled document
+
+#+begin_src chromium :file test-keep.png :css theme :keep-html yes :width 300 :height 100
+<div class="card">kept</div>
+#+end_src
+
+* PDF output
+
+#+begin_src chromium :file test-print.pdf :css test-theme.css
+<h1>Printed</h1>
+<p>From :file test-print.pdf.</p>
+#+end_src
