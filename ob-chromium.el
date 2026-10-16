@@ -456,15 +456,18 @@ Return nil: org inserts the link to :file because :results is file."
     (user-error "ob-chromium: the block body is empty"))
   (let* ((exe (ob-chromium--executable))
          (out (ob-chromium--output-file params))
+         (pdf (ob-chromium--pdf-p out))
          (css (ob-chromium--css params))
          (width (or (ob-chromium--param :width params) ob-chromium-default-width))
          (height (or (ob-chromium--param :height params) ob-chromium-default-height))
          (fit (or (ob-chromium--param :fit params) "viewport"))
          (selector (ob-chromium--param :selector params))
          ;; A selector needs the measurement run whatever :fit says.
+         ;; A PDF takes its page size from the document, so :fit
+         ;; content has nothing to measure for it.
          (measure (or selector
                       (pcase fit
-                        ("content" t)
+                        ("content" (not pdf))
                         ("viewport" nil)
                         (_ (user-error "ob-chromium: :fit must be viewport or content, not %S" fit)))))
          (probe (and measure (ob-chromium--probe-script selector)))
@@ -501,7 +504,8 @@ Return nil: org inserts the link to :file because :results is file."
            (if selector (ob-chromium--append-probe html probe) html) doc-file)
           (ob-chromium--check
            (ob-chromium--run
-            (ob-chromium--command exe url profile width height 'screenshot out params))
+            (ob-chromium--command exe url profile width height
+                                  (if pdf 'pdf 'screenshot) out params))
            out)
           (when (equal (ob-chromium--param :keep-html params) "yes")
             (copy-file doc-file (concat (file-name-sans-extension out) ".html") t))

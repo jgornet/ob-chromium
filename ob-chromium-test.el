@@ -427,6 +427,24 @@ Skipped when no browser is found."
     (should-error (org-babel-execute-src-block) :type 'user-error)
     (should-not (file-exists-p (expand-file-name "out.png" dir)))))
 
+;;;; PDF output
+
+(ert-deftest ob-chromium-test-pdf-p ()
+  "The extension picks PDF output, in any letter case."
+  (should (ob-chromium--pdf-p "/a/b.pdf"))
+  (should (ob-chromium--pdf-p "/a/b.PDF"))
+  (should-not (ob-chromium--pdf-p "/a/b.png")))
+
+(ert-deftest ob-chromium-test-integration-pdf ()
+  "A .pdf :file gives a PDF document, also with :fit content."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.pdf :fit content\n<h1>Title</h1><p>body</p>\n#+end_src\n"
+    (org-babel-execute-src-block)
+    (with-temp-buffer
+      (set-buffer-multibyte nil)
+      (insert-file-contents-literally (expand-file-name "out.pdf" dir) nil 0 5)
+      (should (equal (buffer-string) "%PDF-")))
+    (should (string-match-p "\\[\\[file:out.pdf\\]\\]" (buffer-string)))))
+
 (provide 'ob-chromium-test)
 
 ;;; ob-chromium-test.el ends here
