@@ -400,6 +400,33 @@ Skipped when no browser is found."
   (ob-chromium-test--with-block "#+begin_src chromium :file out.png :fit page\n<p>x</p>\n#+end_src\n"
     (should-error (org-babel-execute-src-block) :type 'user-error)))
 
+;;;; Element capture
+
+(ert-deftest ob-chromium-test-probe-script-selector ()
+  "With a selector the script isolates the element and escapes the selector."
+  (let ((script (ob-chromium--probe-script "a[title=\"x\"] > .b")))
+    (should (string-match-p "querySelector(\"a\\[title=\\\\\"x\\\\\"\\] > .b\")" script))
+    (should (string-match-p "replaceChildren" script))
+    (should (string-match-p "data-ob-chromium-error" script))
+    (should (string-match-p "getBoundingClientRect" script))))
+
+(ert-deftest ob-chromium-test-parse-error ()
+  "The probe's error attribute is read from the DOM dump."
+  (should (equal (ob-chromium--parse-error "<html data-ob-chromium-error=\"no element matches\">") "no element matches"))
+  (should-not (ob-chromium--parse-error "<html data-ob-chromium-size=\"1x1\">")))
+
+(ert-deftest ob-chromium-test-integration-selector ()
+  ":selector captures one element at its own size, without :fit."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png :selector .card\n<p>before</p>\n<div class=\"card\" style=\"width:300px;height:200px;background:#c00\">card</div>\n<p style=\"height:1500px\">after</p>\n#+end_src\n"
+    (org-babel-execute-src-block)
+    (should (equal (ob-chromium-test--png-size (expand-file-name "out.png" dir)) '(300 . 200)))))
+
+(ert-deftest ob-chromium-test-integration-selector-missing ()
+  "A selector that matches nothing is a `user-error' and writes no image."
+  (ob-chromium-test--with-block "#+begin_src chromium :file out.png :selector .nothing\n<p>x</p>\n#+end_src\n"
+    (should-error (org-babel-execute-src-block) :type 'user-error)
+    (should-not (file-exists-p (expand-file-name "out.png" dir)))))
+
 (provide 'ob-chromium-test)
 
 ;;; ob-chromium-test.el ends here

@@ -54,6 +54,7 @@
 (require 'browse-url)
 (require 'seq)
 (require 'url-util)
+(require 'json)
 
 ;;;; Customization
 
@@ -349,15 +350,44 @@ error of Chromium goes to the Org-Babel error buffer first."
 (defconst ob-chromium--max-window 16384
   "Largest window side in CSS pixels the measured size is clamped to.")
 
-(defun ob-chromium--probe-script ()
-  "Return the script that records the document size on the root element."
-  "<script>
+(defun ob-chromium--json-string (string)
+  "Return STRING as a JSON string literal, quotes and backslashes escaped."
+  (if (and (fboundp 'json-serialize) (fboundp 'json-available-p) (json-available-p))
+      (json-serialize string)
+    (json-encode-string string)))
+
+(defun ob-chromium--probe-script (&optional selector)
+  "Return the script that records the measured size on the root element.
+Without SELECTOR the size is the document's scrollWidth and
+scrollHeight.  With SELECTOR, a CSS selector, the script keeps only
+the first matching element under <body>, with no body margin, and
+records the element's size.  When nothing matches it records
+data-ob-chromium-error instead."
+  (if selector
+      (format "<script>
+(function () {
+  var d = document.documentElement;
+  var el = document.querySelector(%s);
+  if (!el) {
+    d.setAttribute(\"data-ob-chromium-error\", \"no element matches\");
+    return;
+  }
+  document.body.replaceChildren(el);
+  document.body.style.margin = \"0\";
+  addEventListener(\"load\", function () {
+    var r = el.getBoundingClientRect();
+    d.setAttribute(\"data-ob-chromium-size\",
+                   Math.ceil(r.width) + \"x\" + Math.ceil(r.height));
+  });
+})();
+</script>" (ob-chromium--json-string selector))
+    "<script>
 addEventListener(\"load\", function () {
   var d = document.documentElement;
   d.setAttribute(\"data-ob-chromium-size\",
                  d.scrollWidth + \"x\" + d.scrollHeight);
 });
-</script>")
+</script>"))
 
 (defun ob-chromium--append-probe (html script)
   "Return HTML with SCRIPT before </body>, or at the end without </body>."
@@ -371,6 +401,11 @@ addEventListener(\"load\", function () {
   (when (string-match "data-ob-chromium-size=\"\\([0-9]+\\)x\\([0-9]+\\)\"" dom)
     (cons (min (string-to-number (match-string 1 dom)) ob-chromium--max-window)
           (min (string-to-number (match-string 2 dom)) ob-chromium--max-window))))
+
+(defun ob-chromium--parse-error (dom)
+  "Return the probe's error message from the DOM dump, or nil."
+  (when (string-match "data-ob-chromium-error=\"\\([^\"]*\\)\"" dom)
+    (match-string 1 dom)))
 
 (defun ob-chromium--measure (exe url profile width height params)
   "Run the measurement pass and return the DOM dump as a string.
@@ -425,10 +460,14 @@ Return nil: org inserts the link to :file because :results is file."
          (width (or (ob-chromium--param :width params) ob-chromium-default-width))
          (height (or (ob-chromium--param :height params) ob-chromium-default-height))
          (fit (or (ob-chromium--param :fit params) "viewport"))
-         (measure (pcase fit
-                    ("content" t)
-                    ("viewport" nil)
-                    (_ (user-error "ob-chromium: :fit must be viewport or content, not %S" fit))))
+         (selector (ob-chromium--param :selector params))
+         ;; A selector needs the measurement run whatever :fit says.
+         (measure (or selector
+                      (pcase fit
+                        ("content" t)
+                        ("viewport" nil)
+                        (_ (user-error "ob-chromium: :fit must be viewport or content, not %S" fit)))))
+         (probe (and measure (ob-chromium--probe-script selector)))
          (html (ob-chromium--assemble body css (ob-chromium--base-url)
                                       (ob-chromium--param :document params)))
          (dir (ob-chromium--temp-directory))
@@ -442,14 +481,24 @@ Return nil: org inserts the link to :file because :results is file."
           (make-directory (file-name-directory out) t)
           (when (file-exists-p out) (delete-file out))
           (when measure
-            (ob-chromium--write-document
-             (ob-chromium--append-probe html (ob-chromium--probe-script)) doc-file)
-            (let ((size (ob-chromium--parse-size
-                         (ob-chromium--measure exe url profile width height params))))
-              ;; The width stays :width.  The root element's scrollWidth
-              ;; is never less than the window width.
-              (when size (setq height (cdr size)))))
-          (ob-chromium--write-document html doc-file)
+            (ob-chromium--write-document (ob-chromium--append-probe html probe) doc-file)
+            (let* ((dom (ob-chromium--measure exe url profile width height params))
+                   (size (ob-chromium--parse-size dom))
+                   (problem (ob-chromium--parse-error dom)))
+              (cond
+               (problem
+                (user-error "ob-chromium: :selector %S: %s" selector problem))
+               ((and selector (not size))
+                (user-error "ob-chromium: :selector %S: the measurement run gave no size"
+                            selector))
+               ((and selector size)
+                (setq width (car size) height (cdr size)))
+               ;; Without a selector the width stays :width.  The root
+               ;; element's scrollWidth is never less than the window width.
+               (size (setq height (cdr size))))))
+          ;; With a selector the capture run isolates the element too.
+          (ob-chromium--write-document
+           (if selector (ob-chromium--append-probe html probe) html) doc-file)
           (ob-chromium--check
            (ob-chromium--run
             (ob-chromium--command exe url profile width height 'screenshot out params))
