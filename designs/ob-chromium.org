@@ -64,6 +64,10 @@ used =--no-sandbox= through =ob-chromium-extra-args=.
   errors.
 - Error messages start with a capital letter and have no
   =ob-chromium:= prefix, because =checkdoc= requires it.
+- The temporary directory falls back to =temporary-file-directory=
+  when org has none, which org 9.3 to 9.5 in batch mode do not. The
+  design assumed org always has one. Added to Where the temporary
+  files go and Edge cases.
 
 * Summary
 
@@ -498,7 +502,9 @@ render is wrong.
 
 The package writes the document to =ob-chromium-<hash>.html= in
 =ob-chromium-temporary-directory= when that is set, and otherwise in
-org's =org-babel-temporary-directory= (open question 7). The hash is
+org's =org-babel-temporary-directory= (open question 7). When org has
+no such directory, it uses Emacs's =temporary-file-directory=, as
+org's own =org-babel-temp-file= does. The hash is
 the first 8 characters of the SHA-1 of the assembled document. The
 package creates a profile directory =ob-chromium-profile-<hash>= in
 the same place and passes it as =--user-data-dir= (open question 8).
@@ -833,6 +839,14 @@ A user of =ob-mermaid= finds =:file=, =:width=, =:height=, =:scale=,
   otherwise. Not tested in the first version. CI runs Linux and
   macOS.
 - The org buffer visits a remote file over Tramp. =user-error=.
+- Emacs runs in batch mode with org 9.3 to 9.5, which define
+  =org-babel-temporary-directory= only in an interactive session.
+  The package falls back to =temporary-file-directory=. Found by CI
+  on Emacs 27.2 and 28.2 (open question 7).
+- Chromium runs on an Ubuntu 24.04 GitHub runner, which restricts
+  unprivileged user namespaces. Chromium aborts without
+  =--no-sandbox=. CI passes it through =OB_CHROMIUM_EXTRA_ARGS= on
+  the Ubuntu jobs. Found by the first CI run.
 
 * Testing
 

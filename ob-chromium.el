@@ -292,11 +292,18 @@ prefixed :output-dir.  Only .png and .pdf are accepted."
   (string= (downcase (or (file-name-extension out) "")) "pdf"))
 
 (defun ob-chromium--temp-directory ()
-  "Return the directory for the document and the profile, created."
+  "Return the directory for the document and the profile, created.
+`ob-chromium-temporary-directory' when set, else org's temporary
+directory, else `temporary-file-directory'.  Org 9.3 to 9.5 leave
+`org-babel-temporary-directory' unset in batch mode, and org 9.6
+and later create it on demand in `org-babel-temp-directory'."
   (let ((dir (or ob-chromium-temporary-directory
-                 (if (fboundp 'org-babel-temp-directory)
-                     (org-babel-temp-directory)
-                   (bound-and-true-p org-babel-temporary-directory)))))
+                 (and (fboundp 'org-babel-temp-directory)
+                      (org-babel-temp-directory))
+                 (and (bound-and-true-p org-babel-temporary-directory)
+                      (file-exists-p org-babel-temporary-directory)
+                      org-babel-temporary-directory)
+                 temporary-file-directory)))
     (make-directory dir t)
     (file-name-as-directory (expand-file-name dir))))
 

@@ -265,6 +265,33 @@
           (should-error (ob-chromium--check (list 0 "" "") "/nonexistent/x.png") :type 'user-error))
       (delete-file out))))
 
+(ert-deftest ob-chromium-test-temp-directory-set ()
+  "`ob-chromium-temporary-directory' wins and is created."
+  (let* ((base (make-temp-file "ob-chromium-test" t))
+         (ob-chromium-temporary-directory (expand-file-name "sub/dir" base)))
+    (unwind-protect
+        (let ((dir (ob-chromium--temp-directory)))
+          (should (file-directory-p dir))
+          (should (string-suffix-p "/sub/dir/" dir)))
+      (delete-directory base t))))
+
+(ert-deftest ob-chromium-test-temp-directory-fallback ()
+  "Without a package or org directory, `temporary-file-directory' is used.
+Org 9.3 to 9.5 leave `org-babel-temporary-directory' unset in batch
+mode."
+  (defvar org-babel-temporary-directory)
+  (let ((ob-chromium-temporary-directory nil)
+        (org-babel-temporary-directory nil))
+    (cl-letf (((symbol-function 'org-babel-temp-directory) (lambda () nil)))
+      (should (equal (ob-chromium--temp-directory)
+                     (file-name-as-directory
+                      (expand-file-name temporary-file-directory)))))))
+
+(ert-deftest ob-chromium-test-temp-directory-default ()
+  "With nothing set the result is an existing directory."
+  (let ((ob-chromium-temporary-directory nil))
+    (should (file-directory-p (ob-chromium--temp-directory)))))
+
 ;;;; Integration: these run only when a browser is found
 
 (defun ob-chromium-test--browser ()
