@@ -1,53 +1,58 @@
 #+TITLE: An org-babel language that renders HTML and CSS to a screenshot with headless Chromium
 #+DATE: 2026-10-16
-#+STATUS: Implemented and tagged =0.1.0= on 2026-10-16. Open questions 1-14 were decided on 2026-10-16; questions 4 and 10 went against the recommendation. Work plan steps 1-11 are done, except that the MELPA recipe of step 10 is not submitted because the repository has no remote yet. Open questions 15 and 16, raised during implementation, carry the choices the code makes and are to be decided. All checks pass in a Docker container with Emacs 29.4 and Chromium 155; nothing has run on a Mac or on another Emacs version yet. See Progress.
+#+STATUS: Implemented, tagged =0.1.0= and pushed to https://github.com/jgornet/ob-chromium on 2026-10-16. Open questions 1-14 were decided on 2026-10-16; questions 4 and 10 went against the recommendation. Work plan steps 1-11 are done except the MELPA submission of step 10. CI passes on Emacs 27.2, 28.2, 29.4 and 30.1 on Ubuntu and 30.1 on macOS, after two fixes the first runs found. Open questions 15 and 16, raised during implementation, carry the choices the code makes and are to be decided. See Progress.
 #+OPTIONS: toc:2 num:nil ^:nil
 #+HTML_HEAD: <link rel="stylesheet" href="file:///Users/jamesgornet/Dropbox/GitHub/orgcss/build/org.css"/>
 
 * Progress
 
 As of 2026-10-16. Step numbers are those of the Work plan. Every
-commit is on =main= in this repository, tag =0.1.0= at =24e3a32=.
+commit is on =main= at https://github.com/jgornet/ob-chromium, tag
+=0.1.0= at =24e3a32=. Commits after the tag: =07a6c42= this
+document, =d0fa176= =--no-sandbox= in CI, =9bc01aa= the temporary
+directory fallback, =4aa302b= two docstrings.
 
-| Step | What                                                    | State                                              |
-|------+---------------------------------------------------------+----------------------------------------------------|
-| 0    | This design document                                    | Done, =372a21a=                                      |
-| 1    | Package skeleton                                        | Done, =95b8831=                                      |
-| 2    | =ob-chromium--executable=, =ob-chromium--run=               | Done, =bf53057=                                      |
-| 3    | Document assembly, =:css=, =org-babel-expand-body:chromium= | Done, =ed12436=                                      |
-| 3a   | =:document= override                                      | Done, =d6444d5=                                      |
-| 4    | =org-babel-execute:chromium=, viewport mode               | Done, =32015be=                                      |
-| 5    | =:fit content=                                            | Done, =de6581b=                                      |
-| 5a   | =:selector=                                               | Done, =a2852e0=                                      |
-| 6    | PDF output                                              | Done, =ea120ea=                                      |
-| 7a   | =--disable-infobars=                                      | Done, =de95c41=. Added during step 7, see below      |
-| 7    | =test-example.org=, =test-init.el=, =dev-test.sh=             | Done, =7b02f1d=                                      |
-| 8    | CI, lint                                                | Done, =8f894ea=. Not yet run on GitHub               |
-| 9    | =README.org=                                              | Done, =24e3a32=                                      |
-| 10   | Tag =0.1.0=, MELPA recipe                                 | Tagged. Recipe not submitted: no remote repository |
-| 11   | Measurement                                             | Done, see Measurement, Results                     |
+| Step | What                                                    | State                                                                       |
+|------+---------------------------------------------------------+-----------------------------------------------------------------------------|
+| 0    | This design document                                    | Done, =372a21a=                                                               |
+| 1    | Package skeleton                                        | Done, =95b8831=                                                               |
+| 2    | =ob-chromium--executable=, =ob-chromium--run=               | Done, =bf53057=                                                               |
+| 3    | Document assembly, =:css=, =org-babel-expand-body:chromium= | Done, =ed12436=                                                               |
+| 3a   | =:document= override                                      | Done, =d6444d5=                                                               |
+| 4    | =org-babel-execute:chromium=, viewport mode               | Done, =32015be=                                                               |
+| 5    | =:fit content=                                            | Done, =de6581b=                                                               |
+| 5a   | =:selector=                                               | Done, =a2852e0=                                                               |
+| 6    | PDF output                                              | Done, =ea120ea=                                                               |
+| 7a   | =--disable-infobars=                                      | Done, =de95c41=. Added during step 7, see below                               |
+| 7    | =test-example.org=, =test-init.el=, =dev-test.sh=             | Done, =7b02f1d=                                                               |
+| 8    | CI, lint                                                | Done, =8f894ea=. Green on all five jobs at =4aa302b=, after =d0fa176= and =9bc01aa= |
+| 9    | =README.org=                                              | Done, =24e3a32=                                                               |
+| 10   | Tag =0.1.0=, MELPA recipe                                 | Tagged and pushed. Recipe not submitted yet                                 |
+| 11   | Measurement                                             | Done, see Measurement, Results                                              |
 
 ** Pull requests
 
-None. The repository has no remote. Every step is a commit on =main=.
+None. Every step is a commit on =main=, pushed to GitHub.
 
 ** What has been verified
 
-| Check                                                    | Where                                        | Result                                               |
-|----------------------------------------------------------+----------------------------------------------+------------------------------------------------------|
-| =dev-test.sh syntax=, byte-compile with warnings as errors | Docker, Emacs 29.4                           | Pass                                                 |
-| =dev-test.sh lint=, =checkdoc= and =package-lint=              | Docker, Emacs 29.4                           | Pass                                                 |
-| =dev-test.sh unit=, 44 ERT tests, 12 of them integration   | Docker, Emacs 29.4, org 9.6.15, Chromium 155 | 44 pass                                              |
-| =dev-test.sh batch=, 13 blocks of =test-example.org=         | Docker, as above                             | 13 rendered. The PNGs were read and show the content |
-| Window sizes 50 to 1280 px wide, 50 to 2000 px tall      | Docker, Chromium 155 directly                | Painted in full with =--disable-infobars=              |
-| Measurement, 10 runs per case                            | Docker, as above                             | See Results                                          |
+| Check                                                    | Where                                                                                                    | Result                                               |
+|----------------------------------------------------------+----------------------------------------------------------------------------------------------------------+------------------------------------------------------|
+| =dev-test.sh syntax=, byte-compile with warnings as errors | Docker, Emacs 29.4                                                                                       | Pass                                                 |
+| =dev-test.sh lint=, =checkdoc= and =package-lint=              | Docker, Emacs 29.4                                                                                       | Pass                                                 |
+| =dev-test.sh unit=, 47 ERT tests, 12 of them integration   | Docker, Emacs 27.2 and 29.4, Chromium 155                                                                | 47 pass                                              |
+| =dev-test.sh batch=, 13 blocks of =test-example.org=         | Docker, as above                                                                                         | 13 rendered. The PNGs were read and show the content |
+| Window sizes 50 to 1280 px wide, 50 to 2000 px tall      | Docker, Chromium 155 directly                                                                            | Painted in full with =--disable-infobars=              |
+| Measurement, 10 runs per case                            | Docker, as above                                                                                         | See Results                                          |
+| =syntax=, =lint=, =unit=, =batch=                                | GitHub Actions, Emacs 27.2, 28.2, 29.4, 30.1 on Ubuntu 24.04 and 30.1 on macOS, Chrome from =setup-chrome= | All pass at =4aa302b=                                  |
 
-Not verified: Emacs 27.2, 28.2 and 30.1, macOS, Windows, Chrome or
-Brave or Edge as the browser, =chrome-headless-shell=, a snap
-Chromium, an interactive session with inline images, and export. The
-CI workflow is written but has not run, because the repository has
-no GitHub remote. The container has no sandbox, so every run there
-used =--no-sandbox= through =ob-chromium-extra-args=.
+Not verified: Windows, Brave or Edge as the browser,
+=chrome-headless-shell=, a snap Chromium, an interactive session with
+inline images, and export. The container and the Ubuntu runners have
+no sandbox, so every run there used =--no-sandbox= through
+=ob-chromium-extra-args=. The macOS job ran Chrome with its sandbox.
+The first two CI runs failed and led to the =--no-sandbox= job
+setting and the temporary directory fallback (Edge cases).
 
 ** Where the code differs from the design
 
