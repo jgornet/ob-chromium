@@ -52,6 +52,7 @@
 (require 'format-spec)
 (require 'subr-x)
 (require 'browse-url)
+(require 'seq)
 
 ;;;; Customization
 
@@ -130,6 +131,49 @@ under your home directory that does not start with a period."
 the block body."
   :group 'org-babel
   :type 'string)
+
+;;;; Chromium driver
+
+(defun ob-chromium--executable ()
+  "Return the path of the browser, or signal `user-error'.
+`ob-chromium-executable' wins when it is set.  Otherwise the first
+entry of `ob-chromium-candidates' that resolves is returned and
+cached for the session."
+  (cond
+   (ob-chromium-executable
+    (if (file-executable-p ob-chromium-executable)
+        ob-chromium-executable
+      (user-error "ob-chromium: `ob-chromium-executable' is %s, which is not executable"
+                  ob-chromium-executable)))
+   ((and ob-chromium--executable-cache
+         (file-executable-p ob-chromium--executable-cache))
+    ob-chromium--executable-cache)
+   (t
+    (let ((found (seq-some (lambda (candidate)
+                             (if (file-name-absolute-p candidate)
+                                 (and (file-executable-p candidate) candidate)
+                               (executable-find candidate)))
+                           ob-chromium-candidates)))
+      (unless found
+        (user-error "ob-chromium: no Chromium found on `exec-path' or in `ob-chromium-candidates'; set `ob-chromium-executable'"))
+      (setq ob-chromium--executable-cache found)))))
+
+(defun ob-chromium--run (args)
+  "Run the command ARGS, a list of the program and its arguments.
+Return (EXIT-CODE STDOUT STDERR).  EXIT-CODE is a number, or a
+string when a signal ended the process."
+  (let ((stderr-file (make-temp-file "ob-chromium-stderr")))
+    (unwind-protect
+        (with-temp-buffer
+          (let ((code (apply #'call-process (car args) nil
+                             (list (current-buffer) stderr-file) nil
+                             (cdr args))))
+            (list code
+                  (buffer-string)
+                  (with-temp-buffer
+                    (insert-file-contents stderr-file)
+                    (buffer-string)))))
+      (delete-file stderr-file))))
 
 ;;;; Babel entry points
 
