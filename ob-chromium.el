@@ -1,4 +1,4 @@
-;;; ob-chromium.el --- Org-babel support for rendering HTML and CSS with headless Chromium  -*- lexical-binding: t; -*-
+;;; ob-chromium.el --- Render HTML and CSS to screenshots with headless Chromium  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 James Gornet
 
@@ -79,8 +79,9 @@ is used."
     "/Applications/Chromium.app/Contents/MacOS/Chromium"
     "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge")
-  "Browser names and absolute paths tried in order when
-`ob-chromium-executable' is nil.  A name is looked up on `exec-path'."
+  "Browser names and absolute paths tried in order.
+Used when `ob-chromium-executable' is nil.  A name is looked up on
+the variable `exec-path'; an absolute path must be executable."
   :group 'org-babel
   :type '(repeat string))
 
@@ -142,7 +143,7 @@ the block body."
     (and value (format "%s" value))))
 
 (defun ob-chromium--full-document-p (body)
-  "Return non-nil when BODY starts with a doctype or an <html> tag."
+  "Return non-nil for a BODY whose first tag is a doctype or <html>."
   (let ((case-fold-search t))
     (and (string-match-p "\\`[ \t\n\r]*<\\(!doctype\\|html\\)" body) t)))
 
@@ -173,7 +174,7 @@ with newlines in the order given.  Return nil without :css."
                     (with-temp-buffer
                       (insert-file-contents file)
                       (buffer-string))))
-             (user-error "ob-chromium: :css item %S is neither a named source block nor a readable file"
+             (user-error "The :css item %S is neither a named source block nor a readable file"
                          item)))
        (split-string spec nil t)
        "\n"))))
@@ -203,7 +204,7 @@ as a fragment, and nil lets `ob-chromium--full-document-p' decide."
                 ("yes" t)
                 ("no" nil)
                 ((pred null) (ob-chromium--full-document-p body))
-                (_ (user-error "ob-chromium: :document must be yes or no, not %S"
+                (_ (user-error "The :document header argument must be yes or no, not %S"
                                document)))))
     (if (not full)
         (format-spec ob-chromium-template
@@ -232,7 +233,7 @@ cached for the session."
    (ob-chromium-executable
     (if (file-executable-p ob-chromium-executable)
         ob-chromium-executable
-      (user-error "ob-chromium: `ob-chromium-executable' is %s, which is not executable"
+      (user-error "`ob-chromium-executable' is %s, which is not executable"
                   ob-chromium-executable)))
    ((and ob-chromium--executable-cache
          (file-executable-p ob-chromium--executable-cache))
@@ -244,7 +245,7 @@ cached for the session."
                                (executable-find candidate)))
                            ob-chromium-candidates)))
       (unless found
-        (user-error "ob-chromium: no Chromium found on `exec-path' or in `ob-chromium-candidates'; set `ob-chromium-executable'"))
+        (user-error "No Chromium found on `exec-path' or in `ob-chromium-candidates'; set `ob-chromium-executable'"))
       (setq ob-chromium--executable-cache found)))))
 
 (defun ob-chromium--run (args)
@@ -272,7 +273,7 @@ a leading #."
     (cond ((string= v "transparent") "00000000")
           ((string-match-p "\\`[0-9a-fA-F]\\{6\\}\\'" v) (concat v "FF"))
           ((string-match-p "\\`[0-9a-fA-F]\\{8\\}\\'" v) v)
-          (t (user-error "ob-chromium: :background must be transparent or a 6 or 8 digit hex colour, not %S"
+          (t (user-error "The :background header argument must be transparent or a 6 or 8 digit hex colour, not %S"
                          value)))))
 
 (defun ob-chromium--output-file (params)
@@ -281,9 +282,9 @@ Org has already derived :file from #+NAME and :file-ext and
 prefixed :output-dir.  Only .png and .pdf are accepted."
   (let ((file (ob-chromium--param :file params)))
     (unless file
-      (user-error "ob-chromium: no :file header argument and no #+NAME to derive one from; did you forget to name the block?"))
+      (user-error "No :file header argument and no #+NAME to derive one from; did you forget to name the block?"))
     (unless (member (downcase (or (file-name-extension file) "")) '("png" "pdf"))
-      (user-error "ob-chromium: :file must end in .png or .pdf, not %S" file))
+      (user-error "The :file header argument must end in .png or .pdf, not %S" file))
     (expand-file-name file)))
 
 (defun ob-chromium--pdf-p (out)
@@ -335,7 +336,7 @@ header arguments."
        ('screenshot (list (concat "--screenshot=" out)))
        ('pdf (list (concat "--print-to-pdf=" out) "--no-pdf-header-footer"))
        ('dump (list "--dump-dom"))
-       (_ (error "ob-chromium: unknown mode %S" mode)))
+       (_ (error "Unknown mode %S" mode)))
      (list url))))
 
 (defun ob-chromium--check (result out)
@@ -348,7 +349,7 @@ error of Chromium goes to the Org-Babel error buffer first."
                  (file-exists-p out)
                  (> (file-attribute-size (file-attributes out)) 0))
       (org-babel-eval-error-notify (if (numberp code) code 1) stderr)
-      (user-error "ob-chromium: Chromium exited with %s and %s was not written; see *Org-Babel Error Output*"
+      (user-error "Chromium exited with %s and %s was not written; see *Org-Babel Error Output*"
                   code (file-name-nondirectory out)))))
 
 (defconst ob-chromium--max-window 16384
@@ -413,14 +414,15 @@ addEventListener(\"load\", function () {
 
 (defun ob-chromium--measure (exe url profile width height params)
   "Run the measurement pass and return the DOM dump as a string.
-The document at URL must carry the probe script.  A failed run is
-a `user-error'."
+EXE, URL, PROFILE, WIDTH, HEIGHT and PARAMS are as for
+`ob-chromium--command'.  The document at URL must carry the probe
+script.  A failed run is a `user-error'."
   (let ((result (ob-chromium--run
                  (ob-chromium--command exe url profile width height 'dump nil params))))
     (unless (eql (nth 0 result) 0)
       (org-babel-eval-error-notify (if (numberp (nth 0 result)) (nth 0 result) 1)
                                    (nth 2 result))
-      (user-error "ob-chromium: the measurement run exited with %s; see *Org-Babel Error Output*"
+      (user-error "The measurement run exited with %s; see *Org-Babel Error Output*"
                   (nth 0 result)))
     (nth 1 result)))
 
@@ -449,15 +451,15 @@ a `user-error'."
 
 (defun org-babel-prep-session:chromium (_session _params)
   "Signal an error: chromium blocks have no sessions."
-  (error "ob-chromium does not support sessions"))
+  (error "Sessions are not supported by ob-chromium"))
 
 (defun org-babel-execute:chromium (body params)
   "Render BODY with the header arguments PARAMS to the :file.
 Return nil: org inserts the link to :file because :results is file."
   (when (file-remote-p default-directory)
-    (user-error "ob-chromium: remote files are not supported"))
+    (user-error "Remote files are not supported by ob-chromium"))
   (when (string-blank-p body)
-    (user-error "ob-chromium: the block body is empty"))
+    (user-error "The block body is empty"))
   (let* ((exe (ob-chromium--executable))
          (out (ob-chromium--output-file params))
          (pdf (ob-chromium--pdf-p out))
@@ -473,7 +475,7 @@ Return nil: org inserts the link to :file because :results is file."
                       (pcase fit
                         ("content" (not pdf))
                         ("viewport" nil)
-                        (_ (user-error "ob-chromium: :fit must be viewport or content, not %S" fit)))))
+                        (_ (user-error "The :fit header argument must be viewport or content, not %S" fit)))))
          (probe (and measure (ob-chromium--probe-script selector)))
          (html (ob-chromium--assemble body css (ob-chromium--base-url)
                                       (ob-chromium--param :document params)))
@@ -494,9 +496,9 @@ Return nil: org inserts the link to :file because :results is file."
                    (problem (ob-chromium--parse-error dom)))
               (cond
                (problem
-                (user-error "ob-chromium: :selector %S: %s" selector problem))
+                (user-error "The :selector %S failed: %s" selector problem))
                ((and selector (not size))
-                (user-error "ob-chromium: :selector %S: the measurement run gave no size"
+                (user-error "The :selector %S gave no size in the measurement run"
                             selector))
                ((and selector size)
                 (setq width (car size) height (cdr size)))

@@ -1,0 +1,53 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Emacs ${{ matrix.emacs }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        emacs: ["27.2", "28.2", "29.4", "30.1"]
+        include:
+          - os: macos-latest
+            emacs: "30.1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs }}
+
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+
+      - name: Install package-lint
+        run: |
+          emacs --batch --eval "(progn
+            (require 'package)
+            (push '(\"melpa\" . \"https://melpa.org/packages/\") package-archives)
+            (package-initialize)
+            (package-refresh-contents)
+            (package-install 'package-lint))"
+
+      - name: Byte-compile
+        run: ./dev-test.sh syntax
+
+      - name: Lint
+        run: ./dev-test.sh lint
+
+      - name: Unit and integration tests
+        run: ./dev-test.sh unit
+        env:
+          OB_CHROMIUM_EXECUTABLE: ${{ steps.chrome.outputs.chrome-path }}
+
+      - name: Batch render of test-example.org
+        run: ./dev-test.sh batch
+        env:
+          OB_CHROMIUM_EXECUTABLE: ${{ steps.chrome.outputs.chrome-path }}

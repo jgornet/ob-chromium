@@ -6,8 +6,8 @@
 ;;   emacs -Q -l test-init.el test-example.org
 ;; Loads the package from this directory, enables the chromium
 ;; language, turns off the evaluation prompt and shows images inline.
-;; OB_CHROMIUM_EXTRA_ARGS adds flags, for example --no-sandbox in a
-;; container.
+;; OB_CHROMIUM_EXECUTABLE names the browser and OB_CHROMIUM_EXTRA_ARGS
+;; adds flags, for example --no-sandbox in a container.
 
 ;;; Code:
 
@@ -20,6 +20,10 @@
 (setq vc-handled-backends nil)
 (setq org-startup-with-inline-images t)
 (add-hook 'org-babel-after-execute-hook #'org-redisplay-inline-images)
+
+(let ((exe (getenv "OB_CHROMIUM_EXECUTABLE")))
+  (when (and exe (not (string-empty-p exe)))
+    (setq ob-chromium-executable exe)))
 
 (let ((extra (getenv "OB_CHROMIUM_EXTRA_ARGS")))
   (when (and extra (not (string-empty-p extra)))

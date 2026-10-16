@@ -4,13 +4,14 @@
 #   ./dev-test.sh check        prerequisites: emacs and a browser
 #   ./dev-test.sh clean        remove test-output/ and compiled files
 #   ./dev-test.sh syntax       byte-compile with warnings as errors
+#   ./dev-test.sh lint         checkdoc, and package-lint when it is installed
 #   ./dev-test.sh unit         ERT tests (integration tests skip without a browser)
 #   ./dev-test.sh batch        execute every chromium block of test-example.org
 #   ./dev-test.sh interactive  open test-example.org in Emacs (default)
-#   ./dev-test.sh all          syntax, unit, batch
+#   ./dev-test.sh all          syntax, lint, unit, batch
 #
-# OB_CHROMIUM_EXTRA_ARGS adds Chromium flags, for example --no-sandbox
-# in a container.
+# OB_CHROMIUM_EXECUTABLE names the browser.  OB_CHROMIUM_EXTRA_ARGS adds
+# Chromium flags, for example --no-sandbox in a container.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -23,7 +24,11 @@ check_prerequisites() {
     ok "emacs: $(emacs --version | head -1)"
     local browser
     browser=$(emacs --batch -L . -l ob-chromium.el --eval \
-        '(princ (condition-case e (ob-chromium--executable) (error "")))' 2>/dev/null || true)
+        '(princ (condition-case nil
+                    (let ((ob-chromium-executable (or (getenv "OB_CHROMIUM_EXECUTABLE")
+                                                      ob-chromium-executable)))
+                      (ob-chromium--executable))
+                  (error "")))' 2>/dev/null || true)
     if [ -n "$browser" ]; then
         ok "browser: $browser"
     else
@@ -41,6 +46,25 @@ validate_syntax() {
         -f batch-byte-compile ob-chromium.el
     rm -f ob-chromium.elc
     ok "byte-compile passed"
+}
+
+run_lint() {
+    local out
+    out=$(emacs --batch --eval '(progn (setq vc-handled-backends nil)
+                                       (require (quote checkdoc))
+                                       (checkdoc-file "ob-chromium.el")
+                                       (checkdoc-file "ob-chromium-test.el"))' 2>&1 | grep -v '^Warning (emacs): *$' || true)
+    if [ -n "$out" ]; then
+        echo "$out"; fail "checkdoc reported the lines above"; return 1
+    fi
+    ok "checkdoc passed"
+    if emacs --batch --eval '(progn (require (quote package)) (package-initialize) (require (quote package-lint)))' >/dev/null 2>&1; then
+        emacs --batch --eval '(progn (require (quote package)) (package-initialize))' \
+            -f package-lint-batch-and-exit ob-chromium.el
+        ok "package-lint passed"
+    else
+        warn "package-lint is not installed; skipped"
+    fi
 }
 
 run_unit() {
@@ -82,9 +106,10 @@ case "${1:-interactive}" in
     check)       check_prerequisites ;;
     clean)       clean_outputs ;;
     syntax)      validate_syntax ;;
+    lint)        run_lint ;;
     unit)        run_unit ;;
     batch)       check_prerequisites; run_batch ;;
     interactive) check_prerequisites; run_interactive ;;
-    all)         check_prerequisites; validate_syntax; run_unit; run_batch ;;
-    *)           sed -n '2,13p' "$0"; exit 1 ;;
+    all)         check_prerequisites; validate_syntax; run_lint; run_unit; run_batch ;;
+    *)           sed -n '2,15p' "$0"; exit 1 ;;
 esac

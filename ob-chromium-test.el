@@ -10,12 +10,12 @@
 ;;; Commentary:
 
 ;; Unit tests run without Chromium.  Integration tests run when a
-;; browser is found and are skipped otherwise.  Set
-;; OB_CHROMIUM_EXTRA_ARGS, for example to --no-sandbox, for a
-;; container.
+;; browser is found and are skipped otherwise.  OB_CHROMIUM_EXECUTABLE
+;; names the browser and OB_CHROMIUM_EXTRA_ARGS adds flags, for
+;; example --no-sandbox in a container.
 ;;
-;; Run with:
-;;   emacs --batch -L . -l ob-chromium-test.el -f ert-run-tests-batch-and-exit
+;; `./dev-test.sh unit' runs them in batch mode with
+;; `ert-run-tests-batch-and-exit'.
 
 ;;; Code:
 
@@ -36,7 +36,7 @@
     (should-error (ob-chromium--executable) :type 'user-error)))
 
 (ert-deftest ob-chromium-test-executable-candidates ()
-  "Names resolve on `exec-path', absolute paths resolve as files."
+  "Names resolve on variable `exec-path', absolute paths as files."
   (let* ((dir (make-temp-file "ob-chromium-test" t))
          (fake (expand-file-name "fake-chromium" dir)))
     (unwind-protect
@@ -133,7 +133,7 @@
     (should (string-match-p (regexp-quote "content: \"\\201C\"") doc))))
 
 (ert-deftest ob-chromium-test-assemble-document-override ()
-  ":document yes and no override the detection."
+  "Test that :document yes and no override the detection."
   (let ((wrapped (ob-chromium--assemble "<html><body>b</body></html>" "" "file:///d/" "no"))
         (kept (ob-chromium--assemble "<div>x</div>" "" "file:///d/" "yes")))
     (should (string-prefix-p "<!DOCTYPE html>" wrapped))
@@ -154,7 +154,7 @@
                              (org-babel-expand-body:chromium "<html></html>" '((:document . "no")))))))
 
 (ert-deftest ob-chromium-test-css-named-block ()
-  ":css resolves named blocks in the buffer, in order."
+  "Test that :css resolves named blocks in the buffer, in order."
   (ob-chromium-test--with-org
       "#+NAME: theme\n#+begin_src css\nbody { color: red }\n#+end_src\n\n#+NAME: more\n#+begin_src css\np { margin: 0 }\n#+end_src\n"
     (should (equal (ob-chromium--css '((:css . "theme more")))
@@ -163,7 +163,7 @@
                    "p { margin: 0 }\nbody { color: red }"))))
 
 (ert-deftest ob-chromium-test-css-file ()
-  ":css resolves a file relative to `default-directory'."
+  "Test that :css resolves a file relative to `default-directory'."
   (let* ((dir (make-temp-file "ob-chromium-test" t))
          (default-directory (file-name-as-directory dir)))
     (unwind-protect
@@ -193,14 +193,14 @@
 ;;;; Command line and output file
 
 (ert-deftest ob-chromium-test-background ()
-  "transparent, 6 and 8 digit colours map to RRGGBBAA; others error."
+  "Test that transparent, 6 and 8 digit colours map to RRGGBBAA; others error."
   (should (equal (ob-chromium--background "transparent") "00000000"))
   (should (equal (ob-chromium--background "#ff0000") "ff0000FF"))
   (should (equal (ob-chromium--background "00ff0080") "00ff0080"))
   (should-error (ob-chromium--background "red") :type 'user-error))
 
 (ert-deftest ob-chromium-test-output-file ()
-  ":file is made absolute; .png and .pdf pass; others and none error."
+  "Test that :file is made absolute; .png and .pdf pass; others and none error."
   (let ((default-directory "/d/"))
     (should (equal (ob-chromium--output-file '((:file . "a.png"))) "/d/a.png"))
     (should (equal (ob-chromium--output-file '((:file . "sub/a.PDF"))) "/d/sub/a.PDF")))
@@ -245,7 +245,7 @@
     (should (member "--user-agent=a b" cmd))))
 
 (ert-deftest ob-chromium-test-command-modes ()
-  "pdf adds --print-to-pdf and --no-pdf-header-footer, dump adds --dump-dom."
+  "Test that pdf adds --print-to-pdf and --no-pdf-header-footer, dump adds --dump-dom."
   (let ((pdf (ob-chromium--command "c" "u" "p" 1 1 'pdf "o.pdf" nil))
         (dump (ob-chromium--command "c" "u" "p" 1 1 'dump nil nil)))
     (should (member "--print-to-pdf=o.pdf" pdf))
@@ -268,9 +268,12 @@
 ;;;; Integration: these run only when a browser is found
 
 (defun ob-chromium-test--browser ()
-  "Return the browser path, or nil."
+  "Return the browser path, or nil.
+OB_CHROMIUM_EXECUTABLE names it when set."
   (ignore-errors
-    (let ((ob-chromium--executable-cache nil))
+    (let ((ob-chromium--executable-cache nil)
+          (ob-chromium-executable (or (getenv "OB_CHROMIUM_EXECUTABLE")
+                                      ob-chromium-executable)))
       (ob-chromium--executable))))
 
 (defun ob-chromium-test--extra-args ()
@@ -307,6 +310,8 @@ Skipped when no browser is found."
             (temp (make-temp-file "ob-chromium-test-tmp" t))
             (default-directory (file-name-as-directory dir))
             (ob-chromium-temporary-directory temp)
+            (ob-chromium-executable (or (getenv "OB_CHROMIUM_EXECUTABLE")
+                                        ob-chromium-executable))
             (ob-chromium-extra-args (ob-chromium-test--extra-args))
             (org-confirm-babel-evaluate nil))
        (unwind-protect
@@ -326,7 +331,7 @@ Skipped when no browser is found."
     (should-not (directory-files temp nil "ob-chromium"))))
 
 (ert-deftest ob-chromium-test-integration-size-scale-background ()
-  ":width, :height, :scale and :background transparent shape the PNG."
+  "Test that :width, :height, :scale and :background transparent shape the PNG."
   (ob-chromium-test--with-block "#+begin_src chromium :file out.png :width 100 :height 50 :scale 2 :background transparent\n<p>hello</p>\n#+end_src\n"
     (org-babel-execute-src-block)
     (let ((png (expand-file-name "out.png" dir)))
@@ -355,7 +360,7 @@ painted one with text is well over 1000 bytes."
     (should (string-match-p "\\[\\[file:shot.png\\]\\]" (buffer-string)))))
 
 (ert-deftest ob-chromium-test-integration-output-dir ()
-  ":output-dir is created and prefixed to :file."
+  "Test that :output-dir is created and prefixed to :file."
   (ob-chromium-test--with-block "#+begin_src chromium :file out.png :output-dir img :width 10 :height 10\n<p>x</p>\n#+end_src\n"
     (org-babel-execute-src-block)
     (should (file-exists-p (expand-file-name "img/out.png" dir)))))
@@ -399,7 +404,7 @@ painted one with text is well over 1000 bytes."
   (should-not (ob-chromium--parse-size "<html><body></body></html>")))
 
 (ert-deftest ob-chromium-test-integration-fit-content ()
-  ":fit content makes the height follow the content and keeps the width."
+  "Test that :fit content makes the height follow the content and keeps the width."
   (ob-chromium-test--with-block "#+begin_src chromium :file out.png :width 300 :height 100 :fit content\n<div style=\"height:1200px;margin:0\">tall</div>\n#+end_src\n"
     (org-babel-execute-src-block)
     (let ((size (ob-chromium-test--png-size (expand-file-name "out.png" dir))))
@@ -428,7 +433,7 @@ painted one with text is well over 1000 bytes."
   (should-not (ob-chromium--parse-error "<html data-ob-chromium-size=\"1x1\">")))
 
 (ert-deftest ob-chromium-test-integration-selector ()
-  ":selector captures one element at its own size, without :fit."
+  "Test that :selector captures one element at its own size, without :fit."
   (ob-chromium-test--with-block "#+begin_src chromium :file out.png :selector .card\n<p>before</p>\n<div class=\"card\" style=\"width:300px;height:200px;background:#c00\">card</div>\n<p style=\"height:1500px\">after</p>\n#+end_src\n"
     (org-babel-execute-src-block)
     (should (equal (ob-chromium-test--png-size (expand-file-name "out.png" dir)) '(300 . 200)))))
