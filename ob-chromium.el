@@ -294,7 +294,7 @@ prefixed :output-dir.  Only .png and .pdf are accepted."
 (defun ob-chromium--temp-directory ()
   "Return the directory for the document and the profile, created.
 `ob-chromium-temporary-directory' when set, else org's temporary
-directory, else `temporary-file-directory'.  Org 9.3 to 9.5 leave
+directory, else the variable `temporary-file-directory'.  Org 9.3 to 9.5 leave
 `org-babel-temporary-directory' unset in batch mode, and org 9.6
 and later create it on demand in `org-babel-temp-directory'."
   (let ((dir (or ob-chromium-temporary-directory

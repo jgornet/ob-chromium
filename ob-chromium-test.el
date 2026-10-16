@@ -276,7 +276,7 @@
       (delete-directory base t))))
 
 (ert-deftest ob-chromium-test-temp-directory-fallback ()
-  "Without a package or org directory, `temporary-file-directory' is used.
+  "Without a package or org directory, variable `temporary-file-directory' is used.
 Org 9.3 to 9.5 leave `org-babel-temporary-directory' unset in batch
 mode."
   (defvar org-babel-temporary-directory)
