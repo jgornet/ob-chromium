@@ -53,6 +53,7 @@
 (require 'subr-x)
 (require 'browse-url)
 (require 'seq)
+(require 'url-util)
 
 ;;;; Customization
 
@@ -131,6 +132,84 @@ under your home directory that does not start with a period."
 the block body."
   :group 'org-babel
   :type 'string)
+
+;;;; Document assembly
+
+(defun ob-chromium--param (key params)
+  "Return the header argument KEY from PARAMS as a string, or nil."
+  (let ((value (cdr (assq key params))))
+    (and value (format "%s" value))))
+
+(defun ob-chromium--full-document-p (body)
+  "Return non-nil when BODY starts with a doctype or an <html> tag."
+  (let ((case-fold-search t))
+    (and (string-match-p "\\`[ \t\n\r]*<\\(!doctype\\|html\\)" body) t)))
+
+(defun ob-chromium--named-block-body (name)
+  "Return the body of the source block NAME in the current buffer.
+Return nil when there is no such block."
+  (save-excursion
+    (save-restriction
+      (widen)
+      (let ((pos (org-babel-find-named-block name)))
+        (when pos
+          (goto-char pos)
+          (nth 1 (org-babel-get-src-block-info 'light)))))))
+
+(defun ob-chromium--css (params)
+  "Return the CSS named by the :css header argument in PARAMS.
+Each item is the name of a source block in the current buffer or a
+file path relative to `default-directory'.  The bodies are joined
+with newlines in the order given.  Return nil without :css."
+  (let ((spec (ob-chromium--param :css params)))
+    (when spec
+      (mapconcat
+       (lambda (item)
+         (or (ob-chromium--named-block-body item)
+             (let ((file (expand-file-name item)))
+               (and (file-readable-p file)
+                    (not (file-directory-p file))
+                    (with-temp-buffer
+                      (insert-file-contents file)
+                      (buffer-string))))
+             (user-error "ob-chromium: :css item %S is neither a named source block nor a readable file"
+                         item)))
+       (split-string spec nil t)
+       "\n"))))
+
+(defun ob-chromium--file-url (path)
+  "Return the file URL of PATH."
+  (if (fboundp 'browse-url-file-url)
+      (browse-url-file-url path)
+    (concat "file://" (url-hexify-string (expand-file-name path)
+                                         (cons ?/ url-unreserved-chars)))))
+
+(defun ob-chromium--base-url ()
+  "Return the file URL of `default-directory', with a trailing slash."
+  (ob-chromium--file-url
+   (file-name-as-directory (expand-file-name default-directory))))
+
+(defun ob-chromium--assemble (body css base-url)
+  "Return the HTML document for BODY with CSS and BASE-URL.
+A fragment is wrapped in `ob-chromium-template'.  A full document
+gets a <base> and a <style> element before </head>, or after the
+<html> tag when there is no </head>."
+  (let ((css (or css ""))
+        (case-fold-search t))
+    (if (not (ob-chromium--full-document-p body))
+        (format-spec ob-chromium-template
+                     `((?u . ,base-url) (?c . ,css) (?b . ,body)))
+      (let ((head (format "<base href=\"%s\">\n<style>\n%s\n</style>" base-url css)))
+        (cond ((string-match "</head>" body)
+               (replace-match (concat head "\n</head>") t t body))
+              ((string-match "<html[^>]*>" body)
+               (replace-match (concat (match-string 0 body) "\n" head) t t body))
+              (t (concat head "\n" body)))))))
+
+(defun org-babel-expand-body:chromium (body params)
+  "Return the document rendered for BODY with PARAMS.
+This is what `org-babel-expand-src-block' shows."
+  (ob-chromium--assemble body (ob-chromium--css params) (ob-chromium--base-url)))
 
 ;;;; Chromium driver
 
