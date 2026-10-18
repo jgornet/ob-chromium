@@ -1,51 +1,60 @@
 #+TITLE: An org-babel language that renders HTML and CSS to a screenshot with headless Chromium
 #+DATE: 2026-10-16
-#+STATUS: Implemented, tagged =0.1.0= and pushed to https://github.com/jgornet/ob-chromium on 2026-10-16. Open questions 1-14 were decided on 2026-10-16; questions 4 and 10 went against the recommendation. Work plan steps 1-11 are done except the MELPA submission of step 10. CI passes on Emacs 27.2, 28.2, 29.4 and 30.1 on Ubuntu and 30.1 on macOS, after two fixes the first runs found. Open questions 15 and 16, raised during implementation, carry the choices the code makes and are to be decided. See Progress.
+#+STATUS: Implemented, tagged =0.1.0= and pushed to https://github.com/jgornet/ob-chromium on 2026-10-16. The MELPA recipe was submitted on 2026-10-18 as https://github.com/melpa/melpa/pull/10282 and waits for MELPA's rule that a repository is 1 month old, which it reaches on 2026-11-16. Open questions 1-14 were decided on 2026-10-16; questions 4 and 10 went against the recommendation. Work plan steps 1-11 are done except the Mac half of step 11. CI passes on Emacs 27.2, 28.2, 29.4 and 30.1 on Ubuntu and 30.1 on macOS. Open questions 15 to 17, raised during implementation and submission, carry the choices the code and the recipe make and are to be decided. See Progress.
 #+OPTIONS: toc:2 num:nil ^:nil
 #+HTML_HEAD: <link rel="stylesheet" href="file:///Users/jamesgornet/Dropbox/GitHub/orgcss/build/org.css"/>
 
 * Progress
 
-As of 2026-10-16. Step numbers are those of the Work plan. Every
+As of 2026-10-18. Step numbers are those of the Work plan. Every
 commit is on =main= at https://github.com/jgornet/ob-chromium, tag
 =0.1.0= at =24e3a32=. Commits after the tag: =07a6c42= this
 document, =d0fa176= =--no-sandbox= in CI, =9bc01aa= the temporary
-directory fallback, =4aa302b= two docstrings.
+directory fallback, =4aa302b= two docstrings, =750059d= this
+document, =16b4f0d= the =Assisted-by= header line MELPA asks for.
 
-| Step | What                                                    | State                                                                       |
-|------+---------------------------------------------------------+-----------------------------------------------------------------------------|
-| 0    | This design document                                    | Done, =372a21a=                                                               |
-| 1    | Package skeleton                                        | Done, =95b8831=                                                               |
-| 2    | =ob-chromium--executable=, =ob-chromium--run=               | Done, =bf53057=                                                               |
-| 3    | Document assembly, =:css=, =org-babel-expand-body:chromium= | Done, =ed12436=                                                               |
-| 3a   | =:document= override                                      | Done, =d6444d5=                                                               |
-| 4    | =org-babel-execute:chromium=, viewport mode               | Done, =32015be=                                                               |
-| 5    | =:fit content=                                            | Done, =de6581b=                                                               |
-| 5a   | =:selector=                                               | Done, =a2852e0=                                                               |
-| 6    | PDF output                                              | Done, =ea120ea=                                                               |
-| 7a   | =--disable-infobars=                                      | Done, =de95c41=. Added during step 7, see below                               |
-| 7    | =test-example.org=, =test-init.el=, =dev-test.sh=             | Done, =7b02f1d=                                                               |
-| 8    | CI, lint                                                | Done, =8f894ea=. Green on all five jobs at =4aa302b=, after =d0fa176= and =9bc01aa= |
-| 9    | =README.org=                                              | Done, =24e3a32=                                                               |
-| 10   | Tag =0.1.0=, MELPA recipe                                 | Tagged and pushed. Recipe not submitted yet                                 |
-| 11   | Measurement                                             | Done, see Measurement, Results                                              |
+| Step | What                                                    | State                                                                        |
+|------+---------------------------------------------------------+------------------------------------------------------------------------------|
+| 0    | This design document                                    | Done, =372a21a=                                                                |
+| 1    | Package skeleton                                        | Done, =95b8831=                                                                |
+| 2    | =ob-chromium--executable=, =ob-chromium--run=               | Done, =bf53057=                                                                |
+| 3    | Document assembly, =:css=, =org-babel-expand-body:chromium= | Done, =ed12436=                                                                |
+| 3a   | =:document= override                                      | Done, =d6444d5=                                                                |
+| 4    | =org-babel-execute:chromium=, viewport mode               | Done, =32015be=                                                                |
+| 5    | =:fit content=                                            | Done, =de6581b=                                                                |
+| 5a   | =:selector=                                               | Done, =a2852e0=                                                                |
+| 6    | PDF output                                              | Done, =ea120ea=                                                                |
+| 7a   | =--disable-infobars=                                      | Done, =de95c41=. Added during step 7, see below                                |
+| 7    | =test-example.org=, =test-init.el=, =dev-test.sh=             | Done, =7b02f1d=                                                                |
+| 8    | CI, lint                                                | Done, =8f894ea=. Green on all five jobs at =4aa302b=, after =d0fa176= and =9bc01aa=  |
+| 9    | =README.org=                                              | Done, =24e3a32=                                                                |
+| 10   | Tag =0.1.0=, MELPA recipe                                 | Tagged at =24e3a32=. Recipe submitted on 2026-10-18 as melpa/melpa#10282, open |
+| 11   | Measurement                                             | Done, see Measurement, Results                                               |
 
 ** Pull requests
 
-None. Every step is a commit on =main=, pushed to GitHub.
+Every step of the package is a commit on =main=, pushed to GitHub.
+The one pull request is the MELPA recipe.
+
+| Repo        | Pull request                              | Head                           | State                          |
+|-------------+-------------------------------------------+--------------------------------+--------------------------------|
+| melpa/melpa | https://github.com/melpa/melpa/pull/10282 | =jgornet:ob-chromium= at =aa7f734= | Open. MELPA build check passed |
+
+MELPA asks that a repository is public for 1 month before a recipe is
+merged. The repository was made public on 2026-10-16. The pull
+request says so and can wait until 2026-11-16.
 
 ** What has been verified
 
-| Check                                                    | Where                                                                                                    | Result                                               |
-|----------------------------------------------------------+----------------------------------------------------------------------------------------------------------+------------------------------------------------------|
-| =dev-test.sh syntax=, byte-compile with warnings as errors | Docker, Emacs 29.4                                                                                       | Pass                                                 |
-| =dev-test.sh lint=, =checkdoc= and =package-lint=              | Docker, Emacs 29.4                                                                                       | Pass                                                 |
-| =dev-test.sh unit=, 47 ERT tests, 12 of them integration   | Docker, Emacs 27.2 and 29.4, Chromium 155                                                                | 47 pass                                              |
-| =dev-test.sh batch=, 13 blocks of =test-example.org=         | Docker, as above                                                                                         | 13 rendered. The PNGs were read and show the content |
-| Window sizes 50 to 1280 px wide, 50 to 2000 px tall      | Docker, Chromium 155 directly                                                                            | Painted in full with =--disable-infobars=              |
-| Measurement, 10 runs per case                            | Docker, as above                                                                                         | See Results                                          |
-| =syntax=, =lint=, =unit=, =batch=                                | GitHub Actions, Emacs 27.2, 28.2, 29.4, 30.1 on Ubuntu 24.04 and 30.1 on macOS, Chrome from =setup-chrome= | All pass at =4aa302b=                                  |
-
+| Check                                                    | Where                                     | Result                                               |
+|----------------------------------------------------------+-------------------------------------------+------------------------------------------------------|
+| =dev-test.sh syntax=, byte-compile with warnings as errors | Docker, Emacs 29.4                        | Pass                                                 |
+| =dev-test.sh lint=, =checkdoc= and =package-lint=              | Docker, Emacs 29.4                        | Pass                                                 |
+| =dev-test.sh unit=, 47 ERT tests, 12 of them integration   | Docker, Emacs 27.2 and 29.4, Chromium 155 | 47 pass                                              |
+| =dev-test.sh batch=, 13 blocks of =test-example.org=         | Docker, as above                          | 13 rendered. The PNGs were read and show the content |
+| Window sizes 50 to 1280 px wide, 50 to 2000 px tall      | Docker, Chromium 155 directly             | Painted in full with =--disable-infobars=              |
+| Measurement, 10 runs per case                            | Docker, as above                          | See Results                                          |
+\1| =make recipes/ob-chromium=, unstable and stable channel, then =package-install-file= of the tar | Docker, Emacs 29.4, MELPA =package-build= at =0da7c72= | Snapshot =20261018.349= and stable =0.1.0= build. The tar installs and loads in a clean Emacs |\n
 Not verified: Windows, Brave or Edge as the browser,
 =chrome-headless-shell=, a snap Chromium, an interactive session with
 inline images, and export. The container and the Ubuntu runners have
@@ -71,8 +80,8 @@ setting and the temporary directory fallback (Edge cases).
   =ob-chromium:= prefix, because =checkdoc= requires it.
 - The temporary directory falls back to =temporary-file-directory=
   when org has none, which org 9.3 to 9.5 in batch mode do not. The
-  design assumed org always has one. Added to Where the temporary
-  files go and Edge cases.
+  \1- The MELPA recipe carries =:files ("ob-chromium.el")=, which the
+  design did not have (open question 17).
 
 * Summary
 
@@ -708,21 +717,23 @@ All variables are in the =org-babel= customization group, as in
 
 ** Package layout
 
-| File                       | Purpose                                                                     |
-|----------------------------+-----------------------------------------------------------------------------|
-| =ob-chromium.el=             | The package. Header with =Package-Requires: ((emacs "27.1") (org "9.4"))=     |
-| =ob-chromium-test.el=        | ERT tests, unit and integration                                             |
-| =test-example.org=           | One block per feature, executed by the batch test                           |
-| =test-init.el=               | Minimal init that loads the package and the test file                       |
-| =dev-test.sh=                | =check=, =clean=, =syntax=, =lint=, =unit=, =batch=, =interactive=, =all=, as in =ob-mermaid= |
-| =.github/workflows/test.yml= | CI                                                                          |
-| =README.org=                 | Setup, header arguments, customization, the snap note, inline images        |
-| =LICENSE=                    | GPL-3.0, as org requires for a babel language                               |
-| =designs/ob-chromium.org=    | This document                                                               |
+| File                       | Purpose                                                                                                         |
+|----------------------------+-----------------------------------------------------------------------------------------------------------------|
+| =ob-chromium.el=             | The package. Header with =Package-Requires: ((emacs "27.1") (org "9.4"))= and the =Assisted-by= line MELPA asks for |
+| =ob-chromium-test.el=        | ERT tests, unit and integration                                                                                 |
+| =test-example.org=           | One block per feature, executed by the batch test                                                               |
+| =test-init.el=               | Minimal init that loads the package and the test file                                                           |
+| =dev-test.sh=                | =check=, =clean=, =syntax=, =lint=, =unit=, =batch=, =interactive=, =all=, as in =ob-mermaid=                                     |
+| =.github/workflows/test.yml= | CI                                                                                                              |
+| =README.org=                 | Setup, header arguments, customization, the snap note, inline images                                            |
+| =LICENSE=                    | GPL-3.0, as org requires for a babel language                                                                   |
+| =designs/ob-chromium.org=    | This document                                                                                                   |
 
 The MELPA recipe is
-=(ob-chromium :fetcher github :repo "jgornet/ob-chromium")=. Step 10
-of the Work plan submits it once the repository is on GitHub.
+=(ob-chromium :fetcher github :repo "jgornet/ob-chromium" :files ("ob-chromium.el"))=.
+The =:files= list keeps =test-init.el= out of the package, which
+MELPA's default file list would include (open question 17). Step 10
+of the Work plan submitted it as https://github.com/melpa/melpa/pull/10282.
 
 ** What is not covered
 
@@ -1143,7 +1154,21 @@ None beyond Results.
       =user-error=.
     - Recommendation :: A. The selector cannot work without the
       measurement, and asking for both is one more thing to type.
-    - The body is written for A and the code at =a2852e0= does A.
+\117. How does the MELPA package leave =test-init.el= out?
+    Raised on 2026-10-18 by the MELPA build of step 10. MELPA's
+    default file list takes every =*.el= file except =*-test.el=,
+    =*-tests.el= and =test.el=, so a plain recipe packaged
+    =test-init.el= next to =ob-chromium.el=.
+    - Option A :: The recipe lists the files:
+      =:files ("ob-chromium.el")=. The repository does not change.
+    - Option B :: Move =ob-chromium-test.el=, =test-init.el=,
+      =test-example.org= and =test-theme.css= to a =test/=
+      directory. The default file list then fits, and =dev-test.sh=
+      and CI change their paths.
+    - Option C :: Rename =test-init.el= to a name the default list
+      excludes, such as =init-test.el=.
+    - Recommendation :: A. One line in the recipe, nothing moves.
+    - The body is written for A and the pull request does A.
     - TODO Decide.
 
 * Work plan
@@ -1191,7 +1216,11 @@ The steps are in order. Each step is one commit on =main= in
    the snap note, =--no-sandbox=, inline images,
    =org-confirm-babel-evaluate=.
 10. Tag =0.1.0=. Submit the MELPA recipe once the repository has a
-    GitHub remote.
+    GitHub remote. Tagged on 2026-10-16. Submitted on 2026-10-18 as
+    melpa/melpa#10282 after =make recipes/ob-chromium= on both
+    channels and an install of the tar passed in Docker. The recipe
+    carries =:files= (open question 17) and =ob-chromium.el= gained
+    the =Assisted-by= line at =16b4f0d=.
 11. Measurement: 10 runs per case of the Expected values table on
     this machine and a Mac. Record under Results. Revisit open
     question 6 with the figures. Done on this machine in Docker; the
