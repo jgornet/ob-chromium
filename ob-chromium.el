@@ -3,6 +3,7 @@
 ;; Copyright (C) 2026 James Gornet
 
 ;; Author: James Gornet <gornetj@gmail.com>
+;; Assisted-by: Claude Code:claude-fable-5-1
 ;; URL: https://github.com/jgornet/ob-chromium
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1") (org "9.4"))
