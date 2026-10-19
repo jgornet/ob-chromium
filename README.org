@@ -25,8 +25,10 @@ The design, with the decisions behind every rule, is in
 * Setup
 
 1. Install a Chromium family browser: Chromium, Chrome, Brave, Edge
-   or =chrome-headless-shell=. The package finds it on =PATH= or at
-   the usual macOS application paths. Otherwise set the path:
+   or =chrome-headless-shell=. The package finds it on =PATH=, in the
+   Puppeteer cache (=npx puppeteer browsers install
+   chrome-headless-shell= puts it there) or at the usual macOS
+   application paths. Otherwise set the path:
    #+begin_src elisp
    (setq ob-chromium-executable "/path/to/chromium")
    #+end_src
@@ -107,7 +109,7 @@ All variables are in the =org-babel= group.
 | Variable                           | Default | Purpose                                                                 |
 |------------------------------------+---------+-------------------------------------------------------------------------|
 | =ob-chromium-executable=           | =nil=   | Path to the browser. =nil= searches =ob-chromium-candidates=.           |
-| =ob-chromium-candidates=           | list    | Browser names and absolute paths tried in order.                        |
+| =ob-chromium-candidates=           | list    | Browser names and absolute paths, wildcards allowed, tried in order.    |
 | =ob-chromium-extra-args=           | =nil=   | Flags added to every run.                                               |
 | =ob-chromium-default-width=        | 1280    | Window width without =:width=.                                          |
 | =ob-chromium-default-height=       | 800     | Window height without =:height=.                                        |

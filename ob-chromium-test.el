@@ -56,6 +56,23 @@
             (should (equal (ob-chromium--executable) fake))))
       (delete-directory dir t))))
 
+(ert-deftest ob-chromium-test-executable-wildcard ()
+  "A candidate with wildcards resolves to the highest version that is executable."
+  (let ((dir (make-temp-file "ob-chromium-test" t)))
+    (unwind-protect
+        (progn
+          (dolist (version '("mac-9.0" "mac-150.0" "mac-151.0"))
+            (let ((file (expand-file-name (concat version "/shell") dir)))
+              (make-directory (file-name-directory file) t)
+              (with-temp-file file (insert "#!/bin/sh\n"))
+              (set-file-modes file (if (equal version "mac-151.0") #o644 #o755))))
+          (should (equal (ob-chromium--resolve-candidate
+                          (expand-file-name "*/shell" dir))
+                         (expand-file-name "mac-150.0/shell" dir)))
+          (should-not (ob-chromium--resolve-candidate
+                       (expand-file-name "*/missing" dir))))
+      (delete-directory dir t))))
+
 (ert-deftest ob-chromium-test-executable-none ()
   "No candidate resolves: `user-error'."
   (let ((ob-chromium-executable nil)
@@ -73,6 +90,27 @@
     (should (equal (nth 0 result) 3))
     (should (equal (nth 1 result) "out\n"))
     (should (equal (nth 2 result) "err\n"))))
+
+(ert-deftest ob-chromium-test-run-done-stops ()
+  "A process that keeps running after DONE holds is stopped with exit code 0."
+  (let* ((start (float-time))
+         (result (ob-chromium--run
+                  (list "sh" "-c" "echo '5 bytes written to file x' >&2; exec sleep 60")
+                  #'ob-chromium--written-p)))
+    (should (equal (nth 0 result) 0))
+    (should (string-match-p "bytes written" (nth 2 result)))
+    (should (< (- (float-time) start) 15))))
+
+(ert-deftest ob-chromium-test-run-done-exits ()
+  "A process that exits on its own keeps its exit code when DONE is given."
+  (should (equal (car (ob-chromium--run (list "sh" "-c" "exit 2")
+                                        #'ob-chromium--written-p))
+                 2)))
+
+(ert-deftest ob-chromium-test-dumped-p ()
+  "The dump is complete once it ends with </html>."
+  (should (ob-chromium--dumped-p "<html><body></body></html>\n" ""))
+  (should-not (ob-chromium--dumped-p "<html><body>" "")))
 
 ;;;; Document assembly
 

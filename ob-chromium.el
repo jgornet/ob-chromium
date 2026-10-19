@@ -54,6 +54,7 @@
 (require 'subr-x)
 (require 'browse-url)
 (require 'seq)
+(require 'cl-lib)
 (require 'url-util)
 (require 'json)
 
@@ -76,13 +77,18 @@ is used."
 (defcustom ob-chromium-candidates
   '("chromium" "chromium-browser" "google-chrome" "google-chrome-stable"
     "chrome" "chrome-headless-shell" "brave-browser" "microsoft-edge"
+    "~/.cache/puppeteer/chrome-headless-shell/*/*/chrome-headless-shell"
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     "/Applications/Chromium.app/Contents/MacOS/Chromium"
     "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge")
   "Browser names and absolute paths tried in order.
 Used when `ob-chromium-executable' is nil.  A name is looked up on
-the variable `exec-path'; an absolute path must be executable."
+the variable `exec-path'; an absolute path must be executable.  An
+absolute path may hold wildcards, and its matches are tried from the
+highest version down.  The Puppeteer `chrome-headless-shell' comes
+before the macOS applications because Google Chrome 154 there writes
+its output and then does not exit."
   :group 'org-babel
   :type '(repeat string))
 
@@ -225,6 +231,22 @@ This is what `org-babel-expand-src-block' shows."
 
 ;;;; Chromium driver
 
+(defun ob-chromium--resolve-candidate (candidate)
+  "Return the executable that CANDIDATE names, or nil.
+A name is looked up on the variable `exec-path'.  An absolute path
+is expanded and must be executable.  One with wildcards is matched
+and the executable match with the highest version is returned."
+  (cond
+   ((not (file-name-absolute-p candidate))
+    (executable-find candidate))
+   ((string-match-p "[*?[]" candidate)
+    (seq-find #'file-executable-p
+              (sort (file-expand-wildcards (expand-file-name candidate))
+                    (lambda (a b) (string-version-lessp b a)))))
+   (t
+    (let ((file (expand-file-name candidate)))
+      (and (file-executable-p file) file)))))
+
 (defun ob-chromium--executable ()
   "Return the path of the browser, or signal `user-error'.
 `ob-chromium-executable' wins when it is set.  Otherwise the first
@@ -240,31 +262,83 @@ cached for the session."
          (file-executable-p ob-chromium--executable-cache))
     ob-chromium--executable-cache)
    (t
-    (let ((found (seq-some (lambda (candidate)
-                             (if (file-name-absolute-p candidate)
-                                 (and (file-executable-p candidate) candidate)
-                               (executable-find candidate)))
+    (let ((found (seq-some #'ob-chromium--resolve-candidate
                            ob-chromium-candidates)))
       (unless found
         (user-error "No Chromium found on `exec-path' or in `ob-chromium-candidates'; set `ob-chromium-executable'"))
       (setq ob-chromium--executable-cache found)))))
 
-(defun ob-chromium--run (args)
+(defconst ob-chromium--exit-grace 2
+  "Seconds Chromium has to exit on its own once its output is complete.")
+
+(defun ob-chromium--drain (proc seconds)
+  "Read the output of PROC until it closes or for at most SECONDS."
+  (let ((end (+ (float-time) seconds)))
+    (while (and (process-live-p proc) (< (float-time) end))
+      (accept-process-output proc 0.05))))
+
+(defun ob-chromium--stop (proc)
+  "Stop PROC with SIGTERM, and SIGKILL when it is still running after a while.
+SIGTERM lets Chromium shut down its helper processes."
+  (when (process-live-p proc)
+    (signal-process proc 'term)
+    (ob-chromium--drain proc ob-chromium--exit-grace)
+    (when (process-live-p proc)
+      (delete-process proc))))
+
+(defun ob-chromium--run (args &optional done)
   "Run the command ARGS, a list of the program and its arguments.
 Return (EXIT-CODE STDOUT STDERR).  EXIT-CODE is a number, or a
-string when a signal ended the process."
-  (let ((stderr-file (make-temp-file "ob-chromium-stderr")))
-    (unwind-protect
-        (with-temp-buffer
-          (let ((code (apply #'call-process (car args) nil
-                             (list (current-buffer) stderr-file) nil
-                             (cdr args))))
-            (list code
-                  (buffer-string)
-                  (with-temp-buffer
-                    (insert-file-contents stderr-file)
-                    (buffer-string)))))
-      (delete-file stderr-file))))
+string when a signal ended the process.
+
+DONE, when non-nil, is called with the standard output and standard
+error read so far, and returns non-nil once the output is complete.
+Google Chrome 154 on macOS writes its output and then keeps running.
+A process still running `ob-chromium--exit-grace' seconds after
+DONE first returns non-nil is stopped, and EXIT-CODE is 0."
+  (let ((stdout (generate-new-buffer " *ob-chromium-stdout*"))
+        (stderr (generate-new-buffer " *ob-chromium-stderr*"))
+        proc)
+    (cl-flet ((text (buffer) (with-current-buffer buffer (buffer-string))))
+      (unwind-protect
+          (let (done-at stopped)
+            (setq proc (make-process :name "ob-chromium" :command args
+                                     :buffer stdout :stderr stderr
+                                     :connection-type 'pipe :noquery t
+                                     :sentinel #'ignore))
+            (set-process-sentinel (get-buffer-process stderr) #'ignore)
+            (process-send-eof proc)
+            (while (process-live-p proc)
+              (accept-process-output proc 0.1)
+              (cond
+               ((not (process-live-p proc)))
+               (done-at
+                (when (> (- (float-time) done-at) ob-chromium--exit-grace)
+                  (setq stopped t)
+                  (ob-chromium--stop proc)))
+               ((and done (funcall done (text stdout) (text stderr)))
+                (setq done-at (float-time)))))
+            ;; Read what is left.  Helper processes that outlive the
+            ;; browser keep the pipes open, hence the bound.
+            (ob-chromium--drain proc 1)
+            (ob-chromium--drain (get-buffer-process stderr) 1)
+            (list (cond (stopped 0)
+                        ((eq (process-status proc) 'signal)
+                         (format "signal %s" (process-exit-status proc)))
+                        (t (process-exit-status proc)))
+                  (text stdout)
+                  (text stderr)))
+        (when (process-live-p proc) (delete-process proc))
+        (kill-buffer stdout)
+        (kill-buffer stderr)))))
+
+(defun ob-chromium--written-p (_stdout stderr)
+  "Return non-nil when STDERR reports the screenshot or PDF written."
+  (string-match-p "bytes written to file" stderr))
+
+(defun ob-chromium--dumped-p (stdout _stderr)
+  "Return non-nil when STDOUT ends with the whole DOM dump."
+  (string-match-p "</html>[ \t\n]*\\'" stdout))
 
 (defun ob-chromium--background (value)
   "Return the --default-background-color argument for VALUE.
@@ -426,7 +500,8 @@ EXE, URL, PROFILE, WIDTH, HEIGHT and PARAMS are as for
 `ob-chromium--command'.  The document at URL must carry the probe
 script.  A failed run is a `user-error'."
   (let ((result (ob-chromium--run
-                 (ob-chromium--command exe url profile width height 'dump nil params))))
+                 (ob-chromium--command exe url profile width height 'dump nil params)
+                 #'ob-chromium--dumped-p)))
     (unless (eql (nth 0 result) 0)
       (org-babel-eval-error-notify (if (numberp (nth 0 result)) (nth 0 result) 1)
                                    (nth 2 result))
@@ -519,7 +594,8 @@ Return nil: org inserts the link to :file because :results is file."
           (ob-chromium--check
            (ob-chromium--run
             (ob-chromium--command exe url profile width height
-                                  (if pdf 'pdf 'screenshot) out params))
+                                  (if pdf 'pdf 'screenshot) out params)
+            #'ob-chromium--written-p)
            out)
           (when (equal (ob-chromium--param :keep-html params) "yes")
             (copy-file doc-file (concat (file-name-sans-extension out) ".html") t))
